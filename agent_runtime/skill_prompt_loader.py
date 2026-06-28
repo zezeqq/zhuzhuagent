@@ -7,19 +7,25 @@ from pathlib import Path
 
 from db.database import query_all
 
+from agent_runtime.skill_package_detect import find_file_case_insensitive, find_skill_entry_md
+
 _MAX_SKILL_CHARS = 3500
 _MAX_TOTAL_CHARS = 14000
 
 
 def _skill_md_path(install_path: Path, manifest: dict) -> Path | None:
-    entry = (manifest.get("entry") or "").strip()
-    if entry.lower().endswith(".md"):
-        candidate = install_path / entry
-        if candidate.is_file():
-            return candidate
-    default = install_path / "SKILL.md"
-    if default.is_file():
-        return default
+    for key in ("prompt_entry", "entry"):
+        entry = (manifest.get(key) or "").strip()
+        if entry.lower().endswith(".md"):
+            candidate = install_path / entry
+            if candidate.is_file():
+                return candidate
+            ci = find_file_case_insensitive(install_path, Path(entry).name)
+            if ci:
+                return ci
+    found = find_skill_entry_md(install_path)
+    if found:
+        return found
     return None
 
 
@@ -53,15 +59,31 @@ def default_skill_md(display_name: str, description: str = "") -> str:
 
 
 def ensure_skill_md(install_path: Path, manifest: dict) -> Path:
-    """Create SKILL.md from manifest if missing. Returns path to SKILL.md."""
+    """Ensure a readable skill markdown exists. Returns path to the prompt file."""
     install_path.mkdir(parents=True, exist_ok=True)
     existing = _skill_md_path(install_path, manifest)
     if existing:
+        manifest.setdefault("prompt_entry", existing.name)
+        manifest.setdefault("entry", existing.name)
         return existing
+
+    for name in ("README.md", "Readme.md", "readme.md"):
+        readme_path = install_path / name
+        if readme_path.is_file():
+            content = readme_path.read_text(encoding="utf-8", errors="replace").strip()
+            if content:
+                md_path = install_path / "SKILL.md"
+                md_path.write_text(content[:8000], encoding="utf-8")
+                manifest["prompt_entry"] = "SKILL.md"
+                manifest["entry"] = "SKILL.md"
+                return md_path
+
     md_path = install_path / "SKILL.md"
     display = manifest.get("display_name") or manifest.get("name") or install_path.name
     desc = manifest.get("description") or ""
     md_path.write_text(default_skill_md(str(display), str(desc)), encoding="utf-8")
+    manifest["prompt_entry"] = "SKILL.md"
+    manifest["entry"] = "SKILL.md"
     return md_path
 
 
@@ -117,6 +139,14 @@ def load_enabled_skill_sections(*, package_filter: str | None = None) -> list[di
                 "\n\n## 推荐 MCP\n\n"
                 + "、".join(str(x) for x in mcp_ids)
                 + "（对应 `mcp__*` 工具，需在 MCP 设置中启用）。\n"
+            )
+
+        tool_ids = manifest.get("recommended_tools") or []
+        if tool_ids:
+            content += (
+                "\n\n## 推荐内置工具\n\n"
+                + "、".join(f"`{t}`" for t in tool_ids)
+                + "（Craft/Plan 模式下可直接调用）。\n"
             )
 
         if len(content) > _MAX_SKILL_CHARS:

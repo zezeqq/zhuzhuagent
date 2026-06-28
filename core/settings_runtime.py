@@ -29,7 +29,7 @@ GUI_TOOLS = frozenset({
     "screen_capture", "hotkey_press",
 })
 
-_FONT_SIZES = {"小": 9, "默认": 10, "大": 12}
+_FONT_SIZES = {"小": 9, "默认": 11, "大": 13}
 
 
 def get_workspace_path() -> str:
@@ -177,6 +177,16 @@ def check_remote_catalog_on_startup() -> None:
 def check_skill_updates_on_startup() -> None:
     """Re-install Skill packages that have a source_url (best-effort)."""
     check_remote_catalog_on_startup()
+    try:
+        from agent_runtime.skill_installer import refresh_installed_bundled_skills
+        from agent_runtime.tool_executor import load_installed_handlers
+
+        refreshed = refresh_installed_bundled_skills()
+        if refreshed:
+            logger.info("Bundled skills refreshed: %s", ", ".join(refreshed))
+            load_installed_handlers()
+    except Exception as exc:
+        logger.debug("Bundled skill refresh skipped: %s", exc)
     if not get_bool("skill_auto_update", True):
         return
     rows = query_all(
@@ -229,7 +239,10 @@ def apply_app_settings(app: QApplication, main_window: QMainWindow | None = None
 
     level = get_setting("font_size_level", "默认")
     pt = _FONT_SIZES.get(level, 10)
-    font = QFont("Microsoft YaHei UI", pt)
+    font = QFont()
+    font.setFamily("Microsoft YaHei UI")
+    font.setPointSize(pt)
+    font.setHintingPreference(QFont.HintingPreference.PreferFullHinting)
     app.setFont(font)
 
     compact = get_bool("compact_mode", False)

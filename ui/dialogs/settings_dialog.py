@@ -433,16 +433,25 @@ class SettingsDialog(QDialog):
 
         from core.remote_catalog import DEFAULT_REMOTE_CATALOG_URL
 
-        catalog_url = QLineEdit(get_setting("remote_catalog_url", "") or DEFAULT_REMOTE_CATALOG_URL)
-        catalog_url.setPlaceholderText(DEFAULT_REMOTE_CATALOG_URL)
-        catalog_url.setMinimumWidth(280)
-        catalog_url.editingFinished.connect(
-            lambda: self._save_setting("remote_catalog_url", catalog_url.text().strip())
+        catalog_urls = QPlainTextEdit(
+            get_setting("remote_catalog_url", "") or DEFAULT_REMOTE_CATALOG_URL
+        )
+        catalog_urls.setPlaceholderText(
+            "每行一个 URL，或用逗号分隔\n" + DEFAULT_REMOTE_CATALOG_URL
+        )
+        catalog_urls.setMaximumHeight(72)
+        catalog_urls.setMinimumWidth(280)
+
+        def _save_catalog_urls():
+            self._save_setting("remote_catalog_url", catalog_urls.toPlainText().strip())
+
+        catalog_urls.textChanged.connect(
+            lambda: QTimer.singleShot(600, _save_catalog_urls)
         )
         layout.addWidget(_setting_row(
             "远程目录 URL",
-            "专家中心「技能/专家」列表的 JSON 清单地址；启动时自动拉取并缓存 1 小时",
-            catalog_url,
+            "专家中心 Skill/专家 清单；可填多个 JSON 地址，启动时合并拉取并缓存 1 小时",
+            catalog_urls,
         ))
 
         auto_install = _ToggleSwitch()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 import urllib.error
 import urllib.request
@@ -84,9 +85,22 @@ def _fetch_json(url: str, timeout: float = 10.0, *, bust_cache: bool = False) ->
     raise ValueError("无法拉取远程目录")
 
 
+def get_catalog_urls() -> list[str]:
+    """支持多个远程 catalog URL（换行、逗号、分号分隔）。"""
+    raw = get_setting("remote_catalog_url", "").strip()
+    if not raw:
+        return [DEFAULT_REMOTE_CATALOG_URL]
+    parts = re.split(r"[\n,;|]+", raw)
+    urls = [p.strip() for p in parts if p.strip()]
+    return urls or [DEFAULT_REMOTE_CATALOG_URL]
+
+
 def get_catalog_url() -> str:
-    stored = get_setting("remote_catalog_url", "").strip()
-    return stored or DEFAULT_REMOTE_CATALOG_URL
+    """状态栏展示用：单源返回 URL，多源返回摘要。"""
+    urls = get_catalog_urls()
+    if len(urls) == 1:
+        return urls[0]
+    return f"{urls[0]} 等 {len(urls)} 个源"
 
 
 def ensure_catalog_url_configured() -> None:
@@ -97,6 +111,56 @@ def ensure_catalog_url_configured() -> None:
 
 def set_catalog_url(url: str) -> None:
     set_setting("remote_catalog_url", url.strip(), "string")
+
+
+def _merge_manifest_payloads(payloads: list[tuple[str, dict]]) -> dict:
+    """合并多个 catalog.json，按 name 去重；hot_rank 取更小者。"""
+    merged_skills: dict[str, dict] = {}
+    merged_hot: dict[str, dict] = {}
+    merged_experts: dict[str, dict] = {}
+    max_version = 0
+    updated_at = ""
+    source_urls: list[str] = []
+
+    for url, data in payloads:
+        source_urls.append(url)
+        max_version = max(max_version, int(data.get("version") or 0))
+        if data.get("updated_at"):
+            updated_at = str(data["updated_at"])
+
+        for s in data.get("hot_skills") or []:
+            if not isinstance(s, dict) or not s.get("name"):
+                continue
+            key = str(s["name"]).lower()
+            prev = merged_hot.get(key)
+            if prev is None or int(s.get("hot_rank", 999)) < int(prev.get("hot_rank", 999)):
+                merged_hot[key] = dict(s)
+
+        for s in data.get("skills") or []:
+            if not isinstance(s, dict) or not s.get("name"):
+                continue
+            key = str(s["name"]).lower()
+            if key not in merged_skills:
+                merged_skills[key] = dict(s)
+
+        for e in data.get("experts") or []:
+            if not isinstance(e, dict) or not e.get("name"):
+                continue
+            key = str(e["name"])
+            if key not in merged_experts:
+                merged_experts[key] = dict(e)
+
+    hot_list = sorted(merged_hot.values(), key=lambda x: int(x.get("hot_rank", 999)))
+    return {
+        "version": max_version,
+        "updated_at": updated_at,
+        "skills": list(merged_skills.values()),
+        "hot_skills": hot_list,
+        "experts": list(merged_experts.values()),
+        "fetched_at": time.time(),
+        "source_url": ", ".join(source_urls),
+        "source_urls": source_urls,
+    }
 
 
 def load_cached_catalog() -> dict | None:
@@ -155,48 +219,90 @@ def list_hot_remote_experts(local_experts: list[dict]) -> list[dict]:
 
 def fetch_remote_catalog(*, force: bool = False) -> dict:
     """Return merged remote manifest; uses disk cache when fresh."""
-    url = get_catalog_url()
-    if not url:
+    urls = get_catalog_urls()
+    if not urls:
         cached = load_cached_catalog()
         return cached or {"skills": [], "experts": [], "fetched_at": 0, "source_url": ""}
 
+    cache_key = "|".join(urls)
+
     if not force:
         cached = load_cached_catalog()
-        if cached and cached.get("source_url") == url:
+        cached_key = "|".join(cached.get("source_urls") or []) if cached else ""
+        if not cached_key and cached:
+            cached_key = cached.get("source_url") or ""
+        if cached and cached_key == cache_key:
             age = time.time() - float(cached.get("fetched_at") or 0)
             if age < _CACHE_TTL_SEC:
                 return cached
 
-    try:
-        data = _fetch_json(url, bust_cache=force)
-        payload = {
-            "version": data.get("version", 1),
-            "updated_at": data.get("updated_at", ""),
-            "skills": list(data.get("skills") or []),
-            "hot_skills": list(data.get("hot_skills") or []),
-            "experts": list(data.get("experts") or []),
-            "fetched_at": time.time(),
-            "source_url": url,
-        }
-        _cache_path().write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        set_setting("remote_catalog_last_fetch", str(int(payload["fetched_at"])), "string")
-        n_hot = len(payload["hot_skills"])
-        logger.info(
-            "Remote catalog fetched: %d hot, %d skills, %d experts",
-            n_hot, len(payload["skills"]), len(payload["experts"]),
-        )
-        return payload
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
-        logger.warning("Remote catalog fetch failed: %s", exc)
+    payloads: list[tuple[str, dict]] = []
+    errors: list[str] = []
+    for url in urls:
+        try:
+            data = _fetch_json(url, bust_cache=force)
+            payloads.append((url, data))
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
+            errors.append(f"{url}: {exc}")
+            logger.warning("Remote catalog fetch failed for %s: %s", url, exc)
+
+    if not payloads:
         cached = load_cached_catalog()
         if cached:
-            cached["fetch_error"] = str(exc)
+            cached["fetch_error"] = "; ".join(errors) if errors else "无法拉取远程目录"
             return cached
-        raise
+        raise ValueError(errors[0] if errors else "无法拉取远程目录")
+
+    payload = _merge_manifest_payloads(payloads)
+    if errors:
+        payload["fetch_error"] = "; ".join(errors)
+    _cache_path().write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    set_setting("remote_catalog_last_fetch", str(int(payload["fetched_at"])), "string")
+    n_hot = len(payload["hot_skills"])
+    logger.info(
+        "Remote catalog fetched from %d source(s): %d hot, %d skills, %d experts",
+        len(payloads), n_hot, len(payload["skills"]), len(payload["experts"]),
+    )
+    return payload
+
+
+def _load_bundled_skill_md(name: str) -> str:
+    try:
+        from utils.path_utils import app_root
+        path = app_root() / "config" / "bundled_skills" / f"{name}.md"
+        if path.is_file():
+            return path.read_text(encoding="utf-8").strip()
+    except Exception:
+        pass
+    return ""
+
+
+def _load_bundled_catalog_skills() -> list[dict]:
+    """应用内置 catalog.json + bundled_skills/*.md（GitHub 未更新时仍可用完整 Skill）。"""
+    try:
+        from utils.path_utils import app_root
+        path = app_root() / "config" / "catalog.json"
+        if not path.is_file():
+            return []
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    items: list[dict] = []
+    for rs in (data.get("hot_skills") or []) + (data.get("skills") or []):
+        if isinstance(rs, dict) and rs.get("name"):
+            entry = _normalize_remote_skill(rs)
+            md = _load_bundled_skill_md(str(rs["name"]))
+            if md:
+                entry["skill_md"] = md
+            entry["bundled"] = True
+            items.append(entry)
+    return items
 
 
 def all_network_catalog_skills() -> list[dict]:
-    """合并 hot_skills + skills，去重，按 hot_rank 排序。无本地硬编码。"""
+    """合并远程缓存 + 内置 catalog；占位项被内置完整版覆盖。"""
+    from core.skill_catalog import is_catalog_stub
+
     manifest = cached_remote_manifest()
     by_name: dict[str, dict] = {}
     for rs in (manifest.get("hot_skills") or []) + (manifest.get("skills") or []):
@@ -204,6 +310,22 @@ def all_network_catalog_skills() -> list[dict]:
             continue
         key = str(rs["name"]).lower().replace(" ", "_")
         by_name[key] = _normalize_remote_skill(rs)
+
+    bundled_list = _load_bundled_catalog_skills()
+    for bs in bundled_list:
+        key = str(bs["name"]).lower().replace(" ", "_")
+        prev = by_name.get(key)
+        if prev is None or is_catalog_stub(prev):
+            if not is_catalog_stub(bs):
+                by_name[key] = bs
+        elif bs.get("bundled") and not is_catalog_stub(bs):
+            by_name[key] = bs
+
+    for bs in bundled_list:
+        key = str(bs["name"]).lower().replace(" ", "_")
+        if key not in by_name and not is_catalog_stub(bs):
+            by_name[key] = bs
+
     items = list(by_name.values())
     items.sort(key=lambda s: (int(s.get("hot_rank", 9999)), s.get("display", "")))
     return items
@@ -236,6 +358,9 @@ def remote_experts_merged_with_local(local_experts: list[dict]) -> list[dict]:
             "category": re.get("category", "远程"),
             "prompt": re.get("prompt", re.get("system_prompt", "")),
             "remote": True,
+            "hot": bool(re.get("hot")),
+            "kind": "expert",
+            "recommended_skills": re.get("recommended_skills") or [],
         }
 
     return list(by_name.values())

@@ -6,26 +6,31 @@ from pathlib import Path
 
 
 class DarkPalette:
-    BG = "#0F1117"
-    SIDEBAR = "#0A0C10"
-    CARD = "#161921"
-    CARD_HOVER = "#1C2029"
-    BORDER = "#252A35"
-    BORDER_LIGHT = "#2E3440"
-    TEXT = "#F0F2F5"
-    MUTED = "#9CA3AF"
-    WEAK = "#6B7280"
-    BLUE = "#3B82F6"
-    BLUE_HOVER = "#2563EB"
-    BLUE_MUTED = "#1E3A5F"
-    INDIGO = "#6366F1"
-    SUCCESS = "#22C55E"
-    WARNING = "#F59E0B"
-    DANGER = "#EF4444"
-    HOVER = "#1F2937"
-    SELECTED = "#1D4ED8"
-    INPUT = "#0D1017"
-    TOOLBAR = "#111318"
+    """Premium agent dark — warm charcoal, soft contrast, Cursor/Linear-inspired."""
+    BG = "#131316"
+    SIDEBAR = "#0E0E11"
+    SURFACE = "#18181D"
+    CARD = "#1D1D24"
+    CARD_HOVER = "#26262F"
+    BORDER = "#2C2C38"
+    BORDER_LIGHT = "#3A3A48"
+    TEXT = "#EDEDF2"
+    MUTED = "#9B9BA8"
+    WEAK = "#6B6B78"
+    BLUE = "#6B93FF"
+    BLUE_HOVER = "#5684FF"
+    BLUE_MUTED = "#1E2A4A"
+    INDIGO = "#8B7CF6"
+    ACCENT = "#6B93FF"
+    ACCENT_SOFT = "#252540"
+    SUCCESS = "#34D399"
+    WARNING = "#FBBF24"
+    DANGER = "#F87171"
+    HOVER = "#22222A"
+    SELECTED = "#3D5AFE"
+    INPUT = "#16161A"
+    TOOLBAR = "#141418"
+    GLOW = "rgba(107, 147, 255, 0.35)"
 
 
 class Palette(DarkPalette):
@@ -34,26 +39,31 @@ class Palette(DarkPalette):
 
 
 class LightPalette:
-    BG = "#F3F4F6"
-    SIDEBAR = "#FFFFFF"
+    """Warm light — editorial cream tones."""
+    BG = "#F4F3EF"
+    SIDEBAR = "#FAFAF8"
+    SURFACE = "#FFFFFF"
     CARD = "#FFFFFF"
-    CARD_HOVER = "#F9FAFB"
-    BORDER = "#E5E7EB"
-    BORDER_LIGHT = "#D1D5DB"
-    TEXT = "#111827"
-    MUTED = "#6B7280"
-    WEAK = "#9CA3AF"
-    BLUE = "#2563EB"
-    BLUE_HOVER = "#1D4ED8"
-    BLUE_MUTED = "#DBEAFE"
-    INDIGO = "#4F46E5"
-    SUCCESS = "#16A34A"
+    CARD_HOVER = "#F5F4F0"
+    BORDER = "#E4E3DE"
+    BORDER_LIGHT = "#D5D4CF"
+    TEXT = "#1C1B18"
+    MUTED = "#6B6960"
+    WEAK = "#9C9890"
+    BLUE = "#4F7DF5"
+    BLUE_HOVER = "#3D6FE8"
+    BLUE_MUTED = "#E8EEFC"
+    INDIGO = "#6D5CE7"
+    ACCENT = "#4F7DF5"
+    ACCENT_SOFT = "#EDE9FE"
+    SUCCESS = "#059669"
     WARNING = "#D97706"
     DANGER = "#DC2626"
-    HOVER = "#F3F4F6"
-    SELECTED = "#2563EB"
+    HOVER = "#EEEDEA"
+    SELECTED = "#4F7DF5"
     INPUT = "#FFFFFF"
-    TOOLBAR = "#FFFFFF"
+    TOOLBAR = "#FAFAF8"
+    GLOW = "rgba(79, 125, 245, 0.25)"
 
 
 def apply_theme_palette(theme_name: str) -> None:
@@ -64,20 +74,23 @@ def apply_theme_palette(theme_name: str) -> None:
 
 
 class Radius:
-    CARD = 10
-    CONTROL = 8
-    PILL = 20
-    FULL = 999
+    XS = 6
+    SM = 10
+    MD = 14
+    LG = 18
+    XL = 22
+    PILL = 999
 
 
 from core.app_identity import APP_NAME, APP_VERSION  # noqa: F401 — 统一品牌常量
 
-FONT_FAMILY = '"Microsoft YaHei UI", "Segoe UI", "PingFang SC", sans-serif'
+FONT_FAMILY = '"Microsoft YaHei UI", "Segoe UI Variable", "Segoe UI", "PingFang SC", sans-serif'
+FONT_MONO = '"Cascadia Code", "Cascadia Mono", "Consolas", monospace'
 
-_FONT_PX = {"小": "12px", "默认": "13px", "大": "15px"}
-_FONT_SCALE = {"小": 0.88, "默认": 1.0, "大": 1.18}
-_COMPACT_SPACING = {"normal": "8px", "compact": "4px"}
-_COMPACT_PADDING = {"normal": "12px", "compact": "6px"}
+_FONT_PX = {"小": "13px", "默认": "14px", "大": "16px"}
+_FONT_SCALE = {"小": 0.92, "默认": 1.0, "大": 1.12}
+_COMPACT_SPACING = {"normal": "10px", "compact": "5px"}
+_COMPACT_PADDING = {"normal": "14px", "compact": "8px"}
 
 
 def _scale_font_sizes(qss: str, scale: float) -> str:
@@ -86,26 +99,37 @@ def _scale_font_sizes(qss: str, scale: float) -> str:
 
     def _repl(match: re.Match) -> str:
         px = int(match.group(1))
-        return f"font-size: {max(9, round(px * scale))}px"
+        return f"font-size: {max(10, round(px * scale))}px"
 
     return re.sub(r"font-size:\s*(\d+)px", _repl, qss)
 
 
 def preview_font_size_px() -> str:
     from core.settings_store import get_setting
-    return _FONT_PX.get(get_setting("font_size_level", "默认"), "13px")
+    return _FONT_PX.get(get_setting("font_size_level", "默认"), "14px")
 
 
 def load_stylesheet() -> str:
     from core.settings_store import get_bool, get_setting
 
     qss = style_path().read_text(encoding="utf-8")
+    refresh_path = resource_path("ui", "styles_agent_refresh.qss")
+    if refresh_path.is_file():
+        qss = qss + "\n\n" + refresh_path.read_text(encoding="utf-8")
+
     for attr in dir(Palette):
         if not attr.startswith("_") and not callable(getattr(Palette, attr)):
             qss = qss.replace(f"@{attr}", getattr(Palette, attr))
 
+    for attr in dir(Radius):
+        if not attr.startswith("_"):
+            qss = qss.replace(f"@RADIUS_{attr}", f"{getattr(Radius, attr)}px")
+
+    qss = qss.replace("@FONT_FAMILY", FONT_FAMILY)
+    qss = qss.replace("@FONT_MONO", FONT_MONO)
+
     font_level = get_setting("font_size_level", "默认")
-    qss = qss.replace("@BASE_FONT", _FONT_PX.get(font_level, "13px"))
+    qss = qss.replace("@BASE_FONT", _FONT_PX.get(font_level, "14px"))
     qss = _scale_font_sizes(qss, _FONT_SCALE.get(font_level, 1.0))
 
     compact = get_bool("compact_mode", False)

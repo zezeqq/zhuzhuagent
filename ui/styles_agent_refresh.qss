@@ -1,0 +1,552 @@
+/* ================================================================
+   Buddy Agent UI Refresh — soft radius, premium agent aesthetic
+   Loaded after styles.qss; overrides earlier rules where duplicated.
+   ================================================================ */
+
+/* --- Typography & global polish --- */
+QWidget {
+    font-family: @FONT_FAMILY;
+    font-size: @BASE_FONT;
+}
+
+QToolTip {
+    border-radius: @RADIUS_SM;
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+QScrollBar:vertical {
+    width: 8px;
+    margin: 4px 2px;
+}
+QScrollBar::handle:vertical {
+    border-radius: @RADIUS_PILL;
+    min-height: 40px;
+    background: @BORDER_LIGHT;
+}
+QScrollBar::handle:vertical:hover { background: @WEAK; }
+
+QScrollBar:horizontal {
+    height: 8px;
+    margin: 2px 4px;
+}
+QScrollBar::handle:horizontal {
+    border-radius: @RADIUS_PILL;
+    min-width: 40px;
+    background: @BORDER_LIGHT;
+}
+
+/* --- Title bar --- */
+#AppMenuBar {
+    background-color: @SIDEBAR;
+    border-bottom: 1px solid @BORDER;
+}
+#TitleBarButton, #TitleBarCloseButton {
+    border-radius: @RADIUS_SM;
+    min-width: 40px;
+    max-width: 40px;
+    margin: 2px 1px;
+}
+#AppMenuButton, #MenuToggleButton {
+    border-radius: @RADIUS_SM;
+    padding: 5px 12px;
+    font-size: 12px;
+}
+#AppStatusBar {
+    padding: 4px 16px;
+    font-size: 11px;
+    letter-spacing: 0.2px;
+}
+
+#MainSplitter::handle {
+    background-color: transparent;
+    width: 1px;
+}
+
+/* --- Sidebar --- */
+#TaskSidebar {
+    background-color: @SIDEBAR;
+    border-right: 1px solid @BORDER;
+}
+#SidebarHeader {
+    border-bottom: 1px solid @BORDER;
+}
+#BrandName {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+#BrandVersion {
+    font-size: 11px;
+    letter-spacing: 0.3px;
+}
+#NewTaskButton {
+    border-radius: @RADIUS_PILL;
+    padding: 10px 0;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+#SidebarSearch {
+    border-radius: @RADIUS_MD;
+    padding: 8px 12px;
+    font-size: 13px;
+}
+#SidebarSearch:focus {
+    border-color: @BLUE;
+    background-color: @INPUT;
+}
+#SidebarIconButton {
+    border-radius: @RADIUS_SM;
+}
+#SidebarAvatar {
+    border-radius: @RADIUS_PILL;
+    font-weight: 700;
+}
+
+#TaskCard {
+    border-radius: @RADIUS_MD;
+    padding: 4px;
+    margin: 1px 6px;
+}
+#TaskCard:hover {
+    background-color: @HOVER;
+}
+#TaskCard[selected="true"] {
+    background-color: @ACCENT_SOFT;
+    border-left: none;
+    border: 1px solid @BLUE_MUTED;
+}
+#TaskCardTitle {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
+}
+#TaskCardTime {
+    font-size: 11px;
+    padding-left: 26px;
+}
+
+#SidebarNavItem {
+    border-radius: @RADIUS_MD;
+    padding: 7px 10px;
+    margin: 1px 4px;
+    border-left: none;
+}
+#SidebarNavItem[selected="true"] {
+    background-color: @ACCENT_SOFT;
+    border: 1px solid @BLUE_MUTED;
+}
+#SidebarNavItem:hover {
+    background-color: @HOVER;
+}
+#NavItemLabel {
+    font-weight: 500;
+    letter-spacing: 0.1px;
+}
+#NavSubLink {
+    border-radius: @RADIUS_SM;
+    padding: 3px 8px;
+    font-size: 11px;
+}
+#SidebarSectionTitle {
+    letter-spacing: 0.8px;
+    padding: 4px 10px;
+}
+
+/* --- Conversation --- */
+#ConversationToolbar {
+    background-color: @TOOLBAR;
+    border-bottom: 1px solid @BORDER;
+    min-height: 46px;
+}
+#ConvTitle {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+}
+#ToolbarButton, #ToolbarIconBtn {
+    border-radius: @RADIUS_SM;
+    padding: 6px 12px;
+}
+#ModeSelector {
+    border-radius: @RADIUS_PILL;
+    padding: 3px;
+    background-color: @SURFACE;
+}
+#ModeButton {
+    border-radius: @RADIUS_PILL;
+    padding: 6px 16px;
+    font-weight: 500;
+}
+#ModeCombo, #ToolbarCombo {
+    border-radius: @RADIUS_MD;
+    min-height: 32px;
+}
+
+#WelcomeTitle {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.6px;
+}
+#WelcomeSubtitle {
+    font-size: 15px;
+    line-height: 1.5;
+    letter-spacing: 0.1px;
+}
+
+#UserMessage {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_LG;
+    margin: 8px 48px 8px 96px;
+}
+#AgentMessage {
+    border-left: none;
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_LG;
+    margin: 8px 96px 8px 12px;
+    padding: 10px 14px;
+}
+#AgentMessageHeader {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+#AgentMessageText, #AgentMessageBrowser {
+    font-size: 14px;
+    line-height: 1.65;
+    letter-spacing: 0.15px;
+}
+
+#InputArea {
+    background-color: @TOOLBAR;
+    border-top: 1px solid @BORDER;
+    padding: 4px 0;
+}
+#ChatInput {
+    background-color: @INPUT;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_LG;
+    padding: 12px 16px;
+    font-size: 14px;
+    line-height: 1.55;
+    letter-spacing: 0.12px;
+    selection-background-color: @BLUE_MUTED;
+}
+#ChatInput:focus {
+    border-color: @BLUE;
+    background-color: @SURFACE;
+}
+#SendButton {
+    border-radius: @RADIUS_PILL;
+    font-size: 15px;
+    font-weight: 700;
+}
+#InputBarButton {
+    border-radius: @RADIUS_PILL;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+#InputBarCombo {
+    border-radius: @RADIUS_PILL;
+    padding: 4px 10px;
+    min-height: 26px;
+}
+#InputIconButton {
+    border-radius: @RADIUS_PILL;
+}
+
+#AttachmentCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_MD;
+}
+#AttachmentCardName {
+    color: @MUTED;
+    font-size: 10px;
+    background: transparent;
+}
+#AttachmentRemoveBtn {
+    font-size: 12px;
+    color: @DANGER;
+    background-color: @HOVER;
+    border-radius: @RADIUS_PILL;
+    border: none;
+}
+
+/* --- Result panel --- */
+#ResultPanel {
+    background-color: @BG;
+    border-left: 1px solid @BORDER;
+}
+#ResultTab {
+    border-radius: @RADIUS_SM @RADIUS_SM 0 0;
+    padding: 8px 16px;
+    font-weight: 500;
+}
+#ResultArtifactCard, #ChangeCard, #StatCard {
+    border-radius: @RADIUS_MD;
+}
+#PreviewText {
+    border-radius: @RADIUS_MD;
+    padding: 12px;
+    line-height: 1.55;
+}
+
+/* --- Shared buttons --- */
+QPushButton[variant="primary"] {
+    border-radius: @RADIUS_PILL;
+    padding: 9px 20px;
+    font-weight: 600;
+    letter-spacing: 0.15px;
+    min-height: 36px;
+}
+QPushButton[variant="secondary"] {
+    border-radius: @RADIUS_PILL;
+    padding: 9px 20px;
+    min-height: 36px;
+}
+QPushButton[variant="ghost"] {
+    border-radius: @RADIUS_MD;
+    padding: 7px 14px;
+}
+QPushButton[variant="danger"] {
+    border-radius: @RADIUS_PILL;
+}
+QPushButton[variant="pill"] {
+    border-radius: @RADIUS_PILL;
+    padding: 7px 18px;
+}
+
+#Card, #ActionCard, #ExpertCard, #ProjectCard, #BuddyMessageCard {
+    border-radius: @RADIUS_LG;
+}
+#HotSkillCard {
+    border-radius: @RADIUS_LG;
+    background-color: rgba(107, 147, 255, 0.06);
+    border: 1px solid rgba(107, 147, 255, 0.28);
+}
+#HotSkillCard:hover {
+    border-color: @BLUE;
+    background-color: rgba(107, 147, 255, 0.12);
+}
+
+#CardTitle, #ExpertName, #ProjectCardName {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.05px;
+}
+#MutedLabel {
+    font-size: 12px;
+    line-height: 1.45;
+    letter-spacing: 0.08px;
+}
+
+#CardIconBadge {
+    font-size: 18px;
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_MD;
+}
+#ConnectorCardIcon {
+    font-size: 22px;
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_MD;
+}
+
+#TagButton {
+    border-radius: @RADIUS_PILL;
+    padding: 3px 10px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+#TagButton[tone="parallel"] {
+    color: @BLUE;
+    border-color: rgba(107, 147, 255, 0.45);
+    background-color: rgba(107, 147, 255, 0.1);
+    font-weight: 600;
+}
+#TagButton[tone="skill"] {
+    color: @INDIGO;
+    border-color: rgba(139, 124, 246, 0.45);
+    background-color: rgba(139, 124, 246, 0.1);
+}
+#SkillCardBadge {
+    font-size: 10px;
+    color: @WEAK;
+    background: transparent;
+    letter-spacing: 0.1px;
+}
+#InstalledMark {
+    color: @SUCCESS;
+    font-weight: 700;
+    background: transparent;
+}
+#PlannedMark {
+    color: @WEAK;
+    background: transparent;
+}
+
+#SummonButton {
+    border-radius: @RADIUS_PILL;
+    padding: 6px 16px;
+    font-weight: 600;
+}
+
+/* --- Pages --- */
+#PageTitle {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+#PageSubtitle {
+    font-size: 14px;
+    line-height: 1.55;
+    letter-spacing: 0.1px;
+}
+#SectionTitle {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+}
+
+#PageTabBar {
+    background-color: @TOOLBAR;
+    border-bottom: 1px solid @BORDER;
+    padding: 6px 12px 0 12px;
+}
+#PageTabButton {
+    border-radius: @RADIUS_MD @RADIUS_MD 0 0;
+    border-bottom: 2px solid transparent;
+    padding: 10px 18px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
+}
+#PageTabButton:checked {
+    background-color: @SURFACE;
+    border-bottom-color: @BLUE;
+}
+
+#HeroCard {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(107, 147, 255, 0.22), stop:1 rgba(139, 124, 246, 0.12));
+    border-radius: @RADIUS_LG;
+    border: 1px solid rgba(107, 147, 255, 0.25);
+}
+#HeroCard:hover {
+    border-color: @BLUE;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 rgba(107, 147, 255, 0.28), stop:1 rgba(139, 124, 246, 0.16));
+}
+#HeroCardTitle {
+    font-size: 16px;
+    font-weight: 700;
+    color: @TEXT;
+    letter-spacing: -0.2px;
+    background: transparent;
+}
+#HeroCardTeam {
+    font-size: 11px;
+    color: @MUTED;
+    background: transparent;
+}
+#HeroCardHighlight {
+    font-size: 11px;
+    color: @WEAK;
+    background: transparent;
+}
+
+#WelcomeCatButton {
+    border-radius: @RADIUS_PILL;
+    padding: 9px 22px;
+    font-weight: 500;
+}
+
+#CustomExpertRow {
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_MD;
+    background-color: @CARD;
+    padding: 4px;
+    margin: 3px 0;
+}
+#CustomExpertName {
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.05px;
+    background: transparent;
+}
+
+/* --- Messages & tools --- */
+#StepProgressMessage, #ArtifactMessage, #PlanMessage,
+#PermissionRequestMessage, #FollowUpActionMessage, #ToolCallMessage, #ToolCallsGroup {
+    border-radius: @RADIUS_LG;
+}
+#BuddyMessageTitle {
+    font-size: 18px;
+    letter-spacing: -0.3px;
+}
+#BuddyMessageBody {
+    font-size: 14px;
+    line-height: 1.6;
+    letter-spacing: 0.12px;
+}
+
+QLineEdit, QTextEdit, QPlainTextEdit {
+    border-radius: @RADIUS_MD;
+    padding: 8px 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: 0.1px;
+}
+QComboBox {
+    border-radius: @RADIUS_MD;
+    padding: 6px 12px;
+    min-height: 32px;
+}
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: @RADIUS_XS;
+}
+QMenu {
+    border-radius: @RADIUS_MD;
+    padding: 6px;
+}
+QMenu::item {
+    border-radius: @RADIUS_SM;
+    padding: 8px 20px;
+}
+
+#UserProfilePopup {
+    border-radius: @RADIUS_LG;
+}
+#ProfileMenuItem {
+    border-radius: @RADIUS_MD;
+}
+
+#SettingsNav::item:selected {
+    border-left: none;
+    border-radius: 0 @RADIUS_MD @RADIUS_MD 0;
+    background-color: @ACCENT_SOFT;
+}
+#SettingsPreviewCard, #SettingsListCard, #SettingsStatCard {
+    border-radius: @RADIUS_MD;
+}
+
+#DialogTitleBar {
+    border-bottom: 1px solid @BORDER;
+}
+#ExpertPreviewBanner {
+    padding: 10px 14px;
+    border-radius: @RADIUS_MD;
+    background-color: rgba(107, 147, 255, 0.12);
+    color: @TEXT;
+    border: 1px solid rgba(107, 147, 255, 0.22);
+    font-size: 13px;
+    line-height: 1.5;
+}

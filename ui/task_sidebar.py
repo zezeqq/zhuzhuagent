@@ -227,7 +227,7 @@ class TaskSidebar(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("TaskSidebar")
-        self.setFixedWidth(280)
+        self.setFixedWidth(296)
         self._current_id: int | None = None
         self._cards: dict[int, TaskCard] = {}
         self._nav_items: dict[str, _NavItem] = {}
@@ -239,7 +239,7 @@ class TaskSidebar(QFrame):
         header = QFrame()
         header.setObjectName("SidebarHeader")
         h_layout = QHBoxLayout(header)
-        h_layout.setContentsMargins(14, 10, 10, 8)
+        h_layout.setContentsMargins(16, 12, 12, 10)
         h_layout.setSpacing(6)
         brand_col = QVBoxLayout()
         brand_col.setSpacing(0)
@@ -275,11 +275,11 @@ class TaskSidebar(QFrame):
 
         new_wrap = QFrame()
         nw = QVBoxLayout(new_wrap)
-        nw.setContentsMargins(12, 6, 12, 6)
+        nw.setContentsMargins(14, 8, 14, 8)
         new_btn = QPushButton("＋  新建任务")
         new_btn.setObjectName("NewTaskButton")
         new_btn.setCursor(Qt.PointingHandCursor)
-        new_btn.setFixedHeight(36)
+        new_btn.setFixedHeight(40)
         new_btn.clicked.connect(self.new_task_requested.emit)
         nw.addWidget(new_btn)
         layout.addWidget(new_wrap)
@@ -287,8 +287,8 @@ class TaskSidebar(QFrame):
         nav = QFrame()
         nav.setObjectName("SidebarNav")
         nav_layout = QVBoxLayout(nav)
-        nav_layout.setContentsMargins(6, 6, 6, 6)
-        nav_layout.setSpacing(1)
+        nav_layout.setContentsMargins(8, 8, 8, 8)
+        nav_layout.setSpacing(2)
 
         nav_defs = [
             ("💬", "助理", "assistant", None),

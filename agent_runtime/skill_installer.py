@@ -11,6 +11,10 @@ from urllib.parse import urlparse
 
 from db.database import insert, query_one
 
+from agent_runtime.skill_package_detect import (
+    apply_prompt_entry_to_manifest,
+    find_skill_package_roots,
+)
 from utils.path_utils import installed_skills_dir, skill_downloads_dir
 
 SKILL_ROOT = installed_skills_dir()
@@ -48,6 +52,19 @@ def _github_zip_candidates(url: str) -> list[str]:
     ]
 
 
+def _find_skill_package_roots(root: Path) -> list[Path]:
+    """识别可安装的 Skill 包目录（支持 SKILL.md / 任意 md / .claude/skills 等）。"""
+    return find_skill_package_roots(root)
+
+
+def _readme_excerpt(root: Path, max_chars: int = 8000) -> str:
+    for name in ("README.md", "Readme.md", "readme.md"):
+        p = root / name
+        if p.is_file():
+            return p.read_text(encoding="utf-8", errors="replace")[:max_chars]
+    return ""
+
+
 def _find_manifest(root: Path) -> dict:
     for name in ["skill.json", "dna_skill.json", "manifest.json", "plugin.json"]:
         matches = list(root.rglob(name))
@@ -55,12 +72,69 @@ def _find_manifest(root: Path) -> dict:
             return json.loads(matches[0].read_text(encoding="utf-8"))
     py_files = [p for p in root.rglob("*.py") if "__pycache__" not in p.parts]
     display = root.name
+    readme = _readme_excerpt(root)
     return {
         "name": display.lower().replace(" ", "_"),
         "display_name": display,
         "version": "0.1.0",
-        "description": "从网络安装的本地 Skill 包。",
+        "description": readme[:500] if readme else "从网络安装的本地 Skill 包。",
         "entry": str(py_files[0].relative_to(root)).replace("\\", "/") if py_files else "",
+    }
+
+
+def describe_github_install_compat(source_url: str = "") -> str:
+    """说明 GitHub 仓库与 Buddy Skill 模型的差异（供 UI 展示）。"""
+    return (
+        "Buddy 的 Skill = 目录里的 Markdown 说明注入 Agent 对话（类似 Cursor Agent Skill）。\n"
+        "GitHub 上的技能仓库常见结构：\n"
+        "· skills/名称/SKILL.md 或 .claude/skills/名称/SKILL.md\n"
+        "· 说明文件也可叫其他名字（如 aass.md），manifest 里 prompt_entry 指向即可\n"
+        "· scripts、hooks 供 Claude Code / Cursor 使用，Buddy 不会自动执行\n\n"
+        "安装时会扫描 skills、.claude/skills 等目录下的子包；"
+        "每个包按 manifest 或目录内 md 识别，多个子 Skill 会批量安装。\n"
+        "若整个仓库没有可识别的 Skill 包，会用 README 生成简易说明，效果有限。"
+    )
+
+
+def _manifest_for_package(package_root: Path) -> dict:
+    for name in ["skill.json", "dna_skill.json", "manifest.json", "plugin.json"]:
+        p = package_root / name
+        if p.is_file():
+            return json.loads(p.read_text(encoding="utf-8"))
+    return _find_manifest(package_root)
+
+
+def _install_package_tree(package_root: Path, source_url: str) -> dict:
+    manifest = _manifest_for_package(package_root)
+    manifest = apply_prompt_entry_to_manifest(package_root, manifest)
+    _validate_tool_definitions(manifest)
+    package_name = (
+        manifest.get("name")
+        or manifest.get("skill_name")
+        or package_root.name
+    )
+    package_name = str(package_name).strip().lower().replace(" ", "_")
+    if not package_name:
+        raise ValueError("无法确定 Skill 包名称。")
+
+    install_path = SKILL_ROOT / package_name
+    if install_path.exists():
+        shutil.rmtree(install_path)
+    shutil.copytree(package_root, install_path)
+
+    if not manifest.get("display_name"):
+        manifest["display_name"] = manifest.get("name") or package_root.name
+    manifest.setdefault("skill_type", "prompt")
+    manifest.setdefault("prompt_entry", "SKILL.md")
+
+    _register_package(package_name, manifest, "url", source_url, install_path)
+    from agent_runtime.skill_prompt_loader import ensure_skill_md
+
+    ensure_skill_md(install_path, manifest)
+    return {
+        "package_name": package_name,
+        "install_path": str(install_path),
+        "manifest": manifest,
     }
 
 
@@ -122,6 +196,40 @@ def install_from_catalog(skill: dict) -> dict:
     )
 
 
+def refresh_installed_bundled_skills() -> list[str]:
+    """已安装的内置 Skill 若 catalog 版本更新，重写 SKILL.md 与 manifest。"""
+    from core.remote_catalog import _load_bundled_catalog_skills
+    from db.database import query_all
+
+    updated: list[str] = []
+    bundled = {s["name"]: s for s in _load_bundled_catalog_skills()}
+    for row in query_all(
+        "SELECT package_name, install_path, manifest_json FROM installed_skill_packages WHERE enabled=1"
+    ):
+        pkg = row.get("package_name") or ""
+        if pkg not in bundled:
+            continue
+        src = bundled[pkg]
+        install_path = Path(row.get("install_path") or "")
+        if not install_path.is_dir():
+            continue
+        md = (src.get("skill_md") or "").strip()
+        if md:
+            (install_path / "SKILL.md").write_text(md, encoding="utf-8")
+        manifest = _manifest_from_catalog(src)
+        (install_path / "skill.json").write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        if src.get("tools"):
+            from agent_runtime.skill_tool_scaffold import default_tool_skill_py
+            (install_path / "skill.py").write_text(
+                default_tool_skill_py(pkg, src["tools"]), encoding="utf-8"
+            )
+        _register_package(pkg, manifest, "market", "", install_path)
+        updated.append(src.get("display") or pkg)
+    return updated
+
+
 def install_skill_from_url(url: str) -> dict:
     if not url.strip():
         raise ValueError("请输入 Skill 下载地址或 GitHub 仓库地址。")
@@ -138,26 +246,30 @@ def install_skill_from_url(url: str) -> dict:
                 if zipfile.is_zipfile(download_path):
                     _safe_extract_zip(download_path, tmp_path)
                     roots = [p for p in tmp_path.iterdir() if p.is_dir()]
-                    package_root = roots[0] if len(roots) == 1 else tmp_path
+                    repo_root = roots[0] if len(roots) == 1 else tmp_path
                 else:
-                    package_root = tmp_path / download_path.name
-                    shutil.copy2(download_path, package_root)
-                manifest = _find_manifest(package_root if package_root.is_dir() else tmp_path)
-                _validate_tool_definitions(manifest)
-                package_name = manifest.get("name") or manifest.get("skill_name") or Path(urlparse(url).path).stem
-                package_name = str(package_name).strip().replace(" ", "_")
-                install_path = SKILL_ROOT / package_name
-                if install_path.exists():
-                    shutil.rmtree(install_path)
-                if package_root.is_dir():
-                    shutil.copytree(package_root, install_path)
-                else:
-                    install_path.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(package_root, install_path / package_root.name)
-                _register_package(package_name, manifest, "url", url, install_path)
-                from agent_runtime.skill_prompt_loader import ensure_skill_md
-                ensure_skill_md(install_path, manifest)
-                return {"package_name": package_name, "install_path": str(install_path), "manifest": manifest}
+                    repo_root = tmp_path / download_path.name
+                    shutil.copy2(download_path, repo_root)
+
+                if not repo_root.is_dir():
+                    raise ValueError("无法识别解压后的 Skill 目录。")
+
+                package_roots = _find_skill_package_roots(repo_root)
+                if not package_roots:
+                    result = _install_package_tree(repo_root, url.strip())
+                    result["install_mode"] = "repo_fallback"
+                    return result
+
+                installed: list[dict] = []
+                for pkg_root in package_roots:
+                    installed.append(_install_package_tree(pkg_root, url.strip()))
+
+                primary = installed[0]
+                primary["install_mode"] = "skill_md" if len(installed) == 1 else "batch"
+                if len(installed) > 1:
+                    primary["batch_installed"] = len(installed)
+                    primary["packages"] = [r["package_name"] for r in installed]
+                return primary
         except (OSError, urllib.error.URLError, zipfile.BadZipFile, ValueError) as exc:
             last_error = str(exc)
     raise ValueError(f"安装失败：{last_error or '无法下载或识别 Skill 包'}")

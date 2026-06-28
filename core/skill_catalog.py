@@ -23,15 +23,48 @@ SKILL_CATEGORIES = ["全部", "办公", "效率", "开发", "研究", "数据", 
 # 已废弃：市场列表仅来自远程 catalog.json
 RECOMMENDED_SKILLS: list[dict] = []
 
+_STUB_MAX_CHARS = 200
+_STUB_MAX_LINES = 5
 
-def all_catalog_skills() -> list[dict]:
+
+def is_catalog_stub(skill: dict) -> bool:
+    """一行 skill_md 的 catalog 占位项，市场不展示、不可安装。"""
+    if skill.get("discovered"):
+        return False
+    if skill.get("stub") is True or skill.get("status") in ("stub", "planned", "placeholder"):
+        return True
+    if skill.get("stub") is False or skill.get("status") == "published":
+        return False
+    if skill.get("install_url") or skill.get("package_url"):
+        return False
+    if skill.get("tools"):
+        return False
+
+    md = (skill.get("skill_md") or "").strip()
+    if not md:
+        return True
+    if "##" in md and md.count("\n") >= 5:
+        return False
+    if len(md) >= 280:
+        return False
+
+    lines = [ln for ln in md.splitlines() if ln.strip()]
+    if len(lines) <= _STUB_MAX_LINES and len(md) < _STUB_MAX_CHARS:
+        return True
+    return False
+
+
+def all_catalog_skills(*, include_stubs: bool = False) -> list[dict]:
     from core.remote_catalog import all_network_catalog_skills
-    return all_network_catalog_skills()
+    items = all_network_catalog_skills()
+    if include_stubs:
+        return items
+    return [s for s in items if not is_catalog_stub(s)]
 
 
 def skill_by_name(name: str) -> dict | None:
     key = name.strip().lower().replace(" ", "_")
-    for s in all_catalog_skills():
+    for s in all_catalog_skills(include_stubs=True):
         if s.get("name", "").lower() == key:
             return s
         if s.get("display", "").lower() == name.strip().lower():
@@ -44,7 +77,7 @@ def skill_type_label(skill: dict) -> str:
 
 
 def is_planned_skill(skill: dict) -> bool:
-    return False
+    return is_catalog_stub(skill)
 
 
 def install_success_message(skill: dict, install_path: str) -> str:
@@ -74,7 +107,22 @@ def is_skill_installed(skill: dict, installed: set[str] | None = None) -> bool:
 
 def list_featured_skills() -> list[dict]:
     from core.remote_catalog import list_hot_remote_skills
-    return list_hot_remote_skills()
+    return [s for s in list_hot_remote_skills() if not is_catalog_stub(s)]
+
+
+def catalog_market_stats() -> dict:
+    """市场展示统计：可见 / 原始 / 隐藏占位。"""
+    raw = all_catalog_skills(include_stubs=True)
+    visible = all_catalog_skills(include_stubs=False)
+    bundled = sum(1 for s in visible if s.get("bundled"))
+    remote_visible = sum(1 for s in visible if not s.get("bundled"))
+    return {
+        "visible": len(visible),
+        "raw": len(raw),
+        "hidden_stubs": max(0, len(raw) - len(visible)),
+        "bundled": bundled,
+        "remote_visible": remote_visible,
+    }
 
 
 def catalog_skills_for_category(category: str) -> list[dict]:

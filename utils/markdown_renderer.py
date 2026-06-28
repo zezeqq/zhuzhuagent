@@ -4,6 +4,23 @@ import html
 import re
 
 
+def _md_colors() -> dict[str, str]:
+    from ui.theme import Palette
+    return {
+        "text": Palette.TEXT,
+        "muted": Palette.MUTED,
+        "weak": Palette.WEAK,
+        "border": Palette.BORDER,
+        "card": Palette.CARD,
+        "card_alt": Palette.SURFACE if hasattr(Palette, "SURFACE") else Palette.CARD_HOVER,
+        "input": Palette.INPUT,
+        "toolbar": Palette.TOOLBAR,
+        "blue": Palette.BLUE,
+        "warning": Palette.WARNING,
+        "body": Palette.MUTED,
+    }
+
+
 def markdown_to_html(text: str) -> str:
     """Convert markdown text to styled HTML for QTextBrowser display."""
     if not text:
@@ -92,6 +109,7 @@ def _is_table(block: str) -> bool:
 
 
 def _render_heading(block: str) -> str:
+    c = _md_colors()
     line = block.split("\n")[0]
     level = 0
     for ch in line:
@@ -101,31 +119,33 @@ def _render_heading(block: str) -> str:
             break
     level = min(level, 6)
     text = _inline_format(html.escape(line.lstrip("# ").strip()))
-    sizes = {1: "20px", 2: "17px", 3: "15px", 4: "14px", 5: "13px", 6: "13px"}
+    sizes = {1: "21px", 2: "18px", 3: "16px", 4: "15px", 5: "14px", 6: "14px"}
     weights = {1: "700", 2: "700", 3: "600", 4: "600", 5: "600", 6: "500"}
-    size = sizes.get(level, "14px")
+    size = sizes.get(level, "15px")
     weight = weights.get(level, "600")
-    color = "#F0F2F5" if level <= 2 else "#D1D5DB"
+    color = c["text"] if level <= 2 else c["body"]
     margin = "16px 0 8px 0" if level <= 2 else "12px 0 6px 0"
-    border = "border-bottom: 1px solid #252A35; padding-bottom: 6px;" if level <= 2 else ""
-    return f'<div style="font-size:{size}; font-weight:{weight}; color:{color}; margin:{margin}; {border}">{text}</div>'
+    border = f"border-bottom: 1px solid {c['border']}; padding-bottom: 6px;" if level <= 2 else ""
+    return f'<div style="font-size:{size}; font-weight:{weight}; color:{color}; margin:{margin}; letter-spacing:-0.2px; {border}">{text}</div>'
 
 
 def _render_code_block(block: str) -> str:
+    c = _md_colors()
     lines = block.split("\n")
     lang = lines[0].strip().lstrip("`").strip() if lines else ""
     code_lines = lines[1:-1] if len(lines) > 2 and lines[-1].strip().startswith("```") else lines[1:]
     code = html.escape("\n".join(code_lines))
-    lang_badge = f'<span style="color:#6B7280; font-size:11px; float:right;">{html.escape(lang)}</span>' if lang else ""
+    lang_badge = f'<span style="color:{c["weak"]}; font-size:11px; float:right;">{html.escape(lang)}</span>' if lang else ""
     return (
-        f'<div style="background-color:#0D1017; border:1px solid #252A35; border-radius:8px; '
+        f'<div style="background-color:{c["input"]}; border:1px solid {c["border"]}; border-radius:12px; '
         f'padding:12px 14px; margin:8px 0; font-family:Cascadia Mono,Consolas,monospace; '
-        f'font-size:12px; color:#D1D5DB; white-space:pre-wrap; overflow-x:auto;">'
+        f'font-size:12px; color:{c["body"]}; line-height:1.55; white-space:pre-wrap; overflow-x:auto;">'
         f'{lang_badge}<code>{code}</code></div>'
     )
 
 
 def _render_table(block: str) -> str:
+    c = _md_colors()
     lines = [l.strip() for l in block.strip().split("\n") if l.strip()]
     if len(lines) < 2:
         return _render_paragraph(block)
@@ -144,31 +164,32 @@ def _render_table(block: str) -> str:
 
     rows_html = ""
     th_cells = "".join(
-        f'<th style="padding:8px 12px; text-align:left; font-weight:600; color:#F0F2F5; '
-        f'background-color:#1C2029; border-bottom:2px solid #3B82F6; font-size:12px;">'
-        f'{_inline_format(html.escape(c))}</th>'
-        for c in header_cells
+        f'<th style="padding:8px 12px; text-align:left; font-weight:600; color:{c["text"]}; '
+        f'background-color:{c["card_alt"]}; border-bottom:2px solid {c["blue"]}; font-size:12px;">'
+        f'{_inline_format(html.escape(cell))}</th>'
+        for cell in header_cells
     )
     rows_html += f"<tr>{th_cells}</tr>\n"
 
     for i, line in enumerate(data_lines):
         cells = parse_row(line)
-        bg = "#161921" if i % 2 == 0 else "#111318"
+        bg = c["card"] if i % 2 == 0 else c["toolbar"]
         td_cells = "".join(
-            f'<td style="padding:6px 12px; border-bottom:1px solid #252A35; color:#D1D5DB; '
-            f'font-size:12px; background-color:{bg};">{_inline_format(html.escape(c))}</td>'
-            for c in cells
+            f'<td style="padding:6px 12px; border-bottom:1px solid {c["border"]}; color:{c["body"]}; '
+            f'font-size:13px; line-height:1.5; background-color:{bg};">{_inline_format(html.escape(cell))}</td>'
+            for cell in cells
         )
         rows_html += f"<tr>{td_cells}</tr>\n"
 
     return (
         f'<table style="border-collapse:collapse; width:100%; margin:8px 0; '
-        f'border:1px solid #252A35; border-radius:6px; overflow:hidden;">'
+        f'border:1px solid {c["border"]}; border-radius:10px; overflow:hidden;">'
         f'{rows_html}</table>'
     )
 
 
 def _render_unordered_list(block: str) -> str:
+    c = _md_colors()
     items: list[str] = []
     for line in block.split("\n"):
         stripped = line.strip()
@@ -177,13 +198,14 @@ def _render_unordered_list(block: str) -> str:
         elif items:
             items[-1] += " " + stripped
     li_html = "".join(
-        f'<li style="margin:3px 0; color:#D1D5DB; font-size:13px;">{_inline_format(html.escape(item))}</li>'
+        f'<li style="margin:4px 0; color:{c["body"]}; font-size:14px; line-height:1.65;">{_inline_format(html.escape(item))}</li>'
         for item in items
     )
     return f'<ul style="margin:6px 0; padding-left:24px;">{li_html}</ul>'
 
 
 def _render_ordered_list(block: str) -> str:
+    c = _md_colors()
     items: list[str] = []
     for line in block.split("\n"):
         stripped = line.strip()
@@ -193,39 +215,43 @@ def _render_ordered_list(block: str) -> str:
         elif items:
             items[-1] += " " + stripped
     li_html = "".join(
-        f'<li style="margin:3px 0; color:#D1D5DB; font-size:13px;">{_inline_format(html.escape(item))}</li>'
+        f'<li style="margin:4px 0; color:{c["body"]}; font-size:14px; line-height:1.65;">{_inline_format(html.escape(item))}</li>'
         for item in items
     )
     return f'<ol style="margin:6px 0; padding-left:24px;">{li_html}</ol>'
 
 
 def _render_blockquote(block: str) -> str:
+    c = _md_colors()
     lines = [l.lstrip("> ").strip() for l in block.split("\n")]
     content = "<br/>".join(_inline_format(html.escape(l)) for l in lines)
     return (
-        f'<div style="border-left:3px solid #3B82F6; padding:8px 14px; margin:8px 0; '
-        f'background-color:#111318; color:#9CA3AF; font-size:13px; border-radius:0 6px 6px 0;">'
+        f'<div style="border-left:3px solid {c["blue"]}; padding:10px 16px; margin:8px 0; '
+        f'background-color:{c["toolbar"]}; color:{c["muted"]}; font-size:14px; line-height:1.6; '
+        f'border-radius:0 12px 12px 0;">'
         f'{content}</div>'
     )
 
 
 def _render_paragraph(block: str) -> str:
+    c = _md_colors()
     text = block.replace("\n", "<br/>")
     text = _inline_format(html.escape(text).replace("&lt;br/&gt;", "<br/>"))
-    return f'<p style="margin:6px 0; line-height:1.7; color:#D1D5DB; font-size:13px;">{text}</p>'
+    return f'<p style="margin:6px 0; line-height:1.7; color:{c["body"]}; font-size:14px; letter-spacing:0.1px;">{text}</p>'
 
 
 def _inline_format(text: str) -> str:
     """Apply inline markdown formatting (bold, italic, code, links, file paths)."""
+    c = _md_colors()
     text = re.sub(r'\*\*\*(.+?)\*\*\*', r'<b><i>\1</i></b>', text)
-    text = re.sub(r'\*\*(.+?)\*\*', r'<b style="color:#F0F2F5;">\1</b>', text)
+    text = re.sub(r'\*\*(.+?)\*\*', rf'<b style="color:{c["text"]};">\1</b>', text)
     text = re.sub(r'(?<!\*)\*([^*\n]+?)\*(?!\*)', r'<i>\1</i>', text)
     text = re.sub(r'`([^`\n]+?)`',
-                  r'<code style="background-color:#1C2029; color:#F59E0B; padding:1px 5px; '
-                  r'border-radius:3px; font-family:Cascadia Mono,Consolas,monospace; font-size:12px;">\1</code>',
+                  rf'<code style="background-color:{c["card_alt"]}; color:{c["warning"]}; padding:2px 6px; '
+                  rf'border-radius:6px; font-family:Cascadia Mono,Consolas,monospace; font-size:12px;">\1</code>',
                   text)
     text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)',
-                  r'<a href="\2" style="color:#3B82F6; text-decoration:none;">\1</a>',
+                  rf'<a href="\2" style="color:{c["blue"]}; text-decoration:none;">\1</a>',
                   text)
     text = _linkify_file_paths(text)
     return text
@@ -242,7 +268,7 @@ def _linkify_file_paths(text: str) -> str:
             parts = path.replace("\\", "/").split("/")
             display = parts[0] + "/.../" + parts[-1]
         return (
-            f'<a href="{path}" style="color:#F59E0B; text-decoration:underline; '
+            f'<a href="{path}" style="color:{_md_colors()["warning"]}; text-decoration:underline; '
             f'cursor:pointer;" title="点击打开文件">{html.escape(display)}</a>'
         )
 

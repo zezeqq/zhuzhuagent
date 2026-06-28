@@ -250,7 +250,25 @@ class MainWindow(QMainWindow):
     def _on_expert_selected(self, name: str, prompt: str) -> None:
         self._on_page_changed("assistant")
         self._sidebar.highlight_nav("assistant")
-        self._conversation.set_expert(name, prompt)
+        item = getattr(self._expert_center, "_last_summoned_item", None)
+        team = item if isinstance(item, dict) and item.get("kind") == "team" else None
+        self._conversation.set_expert(name, prompt, team=team)
+        if team:
+            members = team.get("members") or []
+            self._conversation._input.setPlaceholderText(
+                f"向专家团「{name}」描述任务（将并行调用 {len(members)} 位成员）…"
+            )
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self,
+                "专家团已激活",
+                f"已召唤「{name}」。\n\n"
+                f"成员：{'、'.join(str(m) for m in members)}\n\n"
+                "请在下方输入任务并发送，将自动进入真并行协作（非普通单专家对话）。",
+            )
+        else:
+            from ui.i18n import t
+            self._conversation._input.setPlaceholderText(t("chat_input_placeholder"))
 
     def _on_skill_installed(self, package_name: str, display_name: str) -> None:
         self._conversation.activate_skill_package(package_name)

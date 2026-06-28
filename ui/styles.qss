@@ -1,13 +1,14 @@
 /* ================================================================
-   DNA Work Agent — Global Dark Theme (WorkBuddy-inspired)
-   Color tokens prefixed with @ are replaced at runtime by theme.py
+   DNA Work Agent — Global Theme
+   Tokens @NAME replaced at runtime by ui/theme.py
+   Agent refresh overrides: ui/styles_agent_refresh.qss
    ================================================================ */
 
 /* --- Global --- */
 QWidget {
     background-color: @BG;
     color: @TEXT;
-    font-family: "Microsoft YaHei UI", "Segoe UI", "PingFang SC", sans-serif;
+    font-family: @FONT_FAMILY;
     font-size: @BASE_FONT;
 }
 

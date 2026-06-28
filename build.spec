@@ -24,6 +24,7 @@ APP_BRAND_NAME = _identity.APP_NAME
 
 datas = [
     (str(project_root / "ui" / "styles.qss"), "ui"),
+    (str(project_root / "ui" / "styles_agent_refresh.qss"), "ui"),
     (str(project_root / "db" / "schema.sql"), "db"),
     (str(project_root / "config"), "config"),
     (str(project_root / "templates"), "templates"),

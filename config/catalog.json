@@ -1,437 +1,133 @@
 {
-  "version": 4,
+  "version": 7,
   "updated_at": "2026-06-28",
-  "hot_skills": [
+  "hot_skills": [],
+  "skills": [
+    {
+      "name": "file_organizer",
+      "display": "文件整理",
+      "desc": "扫描 exports 目录并按扩展名分组（含可调用工具 list_exports_inventory）",
+      "skill_type": "tool",
+      "category": "效率",
+      "icon": "📂",
+      "hot_rank": 1,
+      "hot": true,
+      "status": "published",
+      "skill_version": "1.1.0",
+      "tags": ["文件", "整理", "exports"],
+      "recommended_mcp": ["filesystem"],
+      "tools": [
+        {
+          "name": "list_exports_inventory",
+          "description": "列出 exports 目录并按扩展名分组统计",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "subpath": { "type": "string", "description": "exports 下相对子路径，可空" }
+            },
+            "required": []
+          }
+        }
+      ]
+    },
     {
       "name": "github_helper",
       "display": "GitHub 助手",
-      "desc": "Issue/PR/仓库文件",
+      "desc": "通过 GitHub MCP 查仓库、Issue、PR、文件（须已配置 Token）",
       "category": "开发",
       "icon": "🐙",
       "skill_type": "prompt",
-      "hot_rank": 1,
+      "hot_rank": 2,
       "hot": true,
-      "tags": [
-        "GitHub",
-        "MCP",
-        "代码"
-      ],
-      "skill_md": "# GitHub\n用 mcp__github__* 查仓库。"
+      "status": "published",
+      "skill_version": "1.1.0",
+      "tags": ["GitHub", "MCP", "代码"],
+      "recommended_mcp": ["github"]
     },
     {
       "name": "mcp_setup_guide",
       "display": "MCP 配置向导",
-      "desc": "启用 Filesystem/GitHub/Fetch",
+      "desc": "排查 Buddy 内 MCP 连接、npx、Token 与 Test & reload",
       "category": "远程",
       "icon": "🔌",
       "skill_type": "prompt",
-      "hot_rank": 2,
-      "hot": true,
-      "tags": [
-        "MCP",
-        "配置"
-      ],
-      "skill_md": "# MCP\n排查 npx PATH 与 Token。"
-    },
-    {
-      "name": "deep_research_pro",
-      "display": "深度研究 Pro",
-      "desc": "多轮检索结构化报告",
-      "category": "研究",
-      "icon": "🔬",
-      "skill_type": "prompt",
       "hot_rank": 3,
       "hot": true,
-      "tags": [
-        "研究",
-        "搜索",
-        "报告"
-      ],
-      "skill_md": "# 研究\nBrave+Fetch 多轮检索。"
-    },
-    {
-      "name": "xiaohongshu_writer",
-      "display": "小红书爆款文案",
-      "desc": "种草测评教程文案",
-      "category": "创意",
-      "icon": "📕",
-      "skill_type": "prompt",
-      "hot_rank": 4,
-      "hot": true,
-      "tags": [
-        "小红书",
-        "文案",
-        "运营"
-      ],
-      "skill_md": "# 小红书\n标题+正文+标签。"
+      "status": "published",
+      "skill_version": "1.1.0",
+      "tags": ["MCP", "配置"],
+      "recommended_mcp": ["filesystem", "fetch", "github"]
     },
     {
       "name": "weekly_report_gen",
       "display": "周报月报",
-      "desc": "结构化工作汇报",
+      "desc": "结构化工作汇报，可导出 Word 或保存 Markdown",
       "category": "办公",
       "icon": "📊",
       "skill_type": "prompt",
+      "hot_rank": 4,
+      "hot": true,
+      "status": "published",
+      "skill_version": "1.1.0",
+      "tags": ["周报", "汇报", "办公"],
+      "recommended_tools": ["office_word_create", "file_write"]
+    },
+    {
+      "name": "code_review_pro",
+      "display": "代码审查 Pro",
+      "desc": "正确性/安全/可维护性分级 Review，支持读本地或 GitHub 文件",
+      "category": "开发",
+      "icon": "🔍",
+      "skill_type": "prompt",
       "hot_rank": 5,
       "hot": true,
-      "tags": [
-        "周报",
-        "汇报",
-        "办公"
-      ],
-      "skill_md": "# 周报\n完成/进行/风险/计划。"
+      "status": "published",
+      "skill_version": "1.1.0",
+      "tags": ["代码审查", "质量", "安全"],
+      "recommended_tools": ["file_read"],
+      "recommended_mcp": ["github"]
     },
     {
       "name": "sql_analyst",
       "display": "SQL 数据分析",
-      "desc": "自然语言转 SQL",
+      "desc": "业务问题转只读 SQL，含解释与 LIMIT 约束",
       "category": "数据",
       "icon": "🗃",
       "skill_type": "prompt",
       "hot_rank": 6,
       "hot": true,
-      "tags": [
-        "SQL",
-        "数据",
-        "分析"
-      ],
-      "skill_md": "# SQL\n只读查询与解读。"
+      "status": "published",
+      "skill_version": "1.1.0",
+      "tags": ["SQL", "数据", "分析"],
+      "recommended_tools": ["file_read"]
     },
     {
-      "name": "api_doc_helper",
-      "display": "API 对接",
-      "desc": "读文档生成示例",
-      "category": "开发",
-      "icon": "🔗",
+      "name": "deep_research_pro",
+      "display": "深度研究 Pro",
+      "desc": "多轮检索 + 来源链接的结构化研究报告",
+      "category": "研究",
+      "icon": "🔬",
       "skill_type": "prompt",
       "hot_rank": 7,
       "hot": true,
-      "tags": [
-        "API",
-        "开发",
-        "接口"
-      ],
-      "skill_md": "# API\ncurl/Python 示例。"
-    },
-    {
-      "name": "contract_review_lite",
-      "display": "合同要点审查",
-      "desc": "风险条款提取",
-      "category": "办公",
-      "icon": "📜",
-      "skill_type": "prompt",
-      "hot_rank": 8,
-      "hot": true,
-      "tags": [
-        "合同",
-        "法务",
-        "审查"
-      ],
-      "skill_md": "# 合同\n付款违约争议要点。"
-    },
-    {
-      "name": "resume_polish",
-      "display": "简历优化",
-      "desc": "STAR 法则改写",
-      "category": "办公",
-      "icon": "📝",
-      "skill_type": "prompt",
-      "hot_rank": 9,
-      "hot": true,
-      "tags": [
-        "简历",
-        "求职",
-        "HR"
-      ],
-      "skill_md": "# 简历\n量化成果。"
-    },
-    {
-      "name": "highway_bid_outline",
-      "display": "公路机电投标大纲",
-      "desc": "按评分项生成目录",
-      "category": "工程",
-      "icon": "🛣",
-      "skill_type": "prompt",
-      "hot_rank": 10,
-      "hot": true,
-      "tags": [
-        "投标",
-        "公路",
-        "机电"
-      ],
-      "skill_md": "# 投标\n技术方案目录。"
-    },
-    {
-      "name": "meeting_minutes_pro",
-      "display": "会议纪要 Pro",
-      "desc": "录音/文字转纪要",
-      "category": "办公",
-      "icon": "📝",
-      "skill_type": "prompt",
-      "hot_rank": 11,
-      "hot": true,
-      "tags": [
-        "会议",
-        "纪要",
-        "办公"
-      ],
-      "skill_md": "# 纪要\n决议与待办。"
-    },
-    {
-      "name": "code_review_pro",
-      "display": "代码审查 Pro",
-      "desc": "质量与安全建议",
-      "category": "开发",
-      "icon": "💻",
-      "skill_type": "prompt",
-      "hot_rank": 12,
-      "hot": true,
-      "tags": [
-        "代码",
-        "审查",
-        "开发"
-      ],
-      "skill_md": "# Code Review\n问题分级。"
-    },
-    {
-      "name": "excel_formula_helper",
-      "display": "Excel 公式助手",
-      "desc": "复杂公式与透视表",
-      "category": "办公",
-      "icon": "📈",
-      "skill_type": "prompt",
-      "hot_rank": 13,
-      "hot": true,
-      "tags": [
-        "Excel",
-        "表格",
-        "公式"
-      ],
-      "skill_md": "# Excel\n公式与步骤。"
+      "status": "published",
+      "skill_version": "1.1.0",
+      "tags": ["研究", "搜索", "报告"],
+      "recommended_mcp": ["fetch", "brave-search"]
     },
     {
       "name": "ppt_storyline",
       "display": "PPT 故事线",
-      "desc": "汇报叙事结构",
+      "desc": "汇报叙事与分页大纲；确认后可 office_ppt_create 生成 pptx",
       "category": "办公",
       "icon": "📽",
       "skill_type": "prompt",
-      "hot_rank": 14,
+      "hot_rank": 8,
       "hot": true,
-      "tags": [
-        "PPT",
-        "汇报",
-        "演示"
-      ],
-      "skill_md": "# PPT\n故事线+页标题。"
-    },
-    {
-      "name": "email_business",
-      "display": "商务邮件",
-      "desc": "正式邮件模板",
-      "category": "办公",
-      "icon": "✉",
-      "skill_type": "prompt",
-      "hot_rank": 15,
-      "hot": true,
-      "tags": [
-        "邮件",
-        "商务",
-        "沟通"
-      ],
-      "skill_md": "# 邮件\n主题正文签名。"
-    },
-    {
-      "name": "unit_test_gen",
-      "display": "单元测试生成",
-      "desc": "pytest 用例草稿",
-      "category": "开发",
-      "icon": "🧪",
-      "skill_type": "prompt",
-      "hot_rank": 16,
-      "hot": true,
-      "tags": [
-        "测试",
-        "Python",
-        "pytest"
-      ],
-      "skill_md": "# 测试\n边界用例。"
-    },
-    {
-      "name": "docker_compose_helper",
-      "display": "Docker 编排",
-      "desc": "compose 模板",
-      "category": "开发",
-      "icon": "🐳",
-      "skill_type": "prompt",
-      "hot_rank": 17,
-      "hot": true,
-      "tags": [
-        "Docker",
-        "DevOps",
-        "部署"
-      ],
-      "skill_md": "# Docker\n服务编排。"
-    },
-    {
-      "name": "log_analyzer",
-      "display": "日志分析",
-      "desc": "错误模式归纳",
-      "category": "开发",
-      "icon": "📋",
-      "skill_type": "prompt",
-      "hot_rank": 18,
-      "hot": true,
-      "tags": [
-        "日志",
-        "排查",
-        "运维"
-      ],
-      "skill_md": "# 日志\n异常聚合。"
-    },
-    {
-      "name": "tender_doc_reader",
-      "display": "招标文件解读",
-      "desc": "提取评分与技术条款",
-      "category": "工程",
-      "icon": "📑",
-      "skill_type": "prompt",
-      "hot_rank": 19,
-      "hot": true,
-      "tags": [
-        "招标",
-        "投标",
-        "解读"
-      ],
-      "skill_md": "# 招标\n评分项清单。"
-    },
-    {
-      "name": "quality_checklist_gen",
-      "display": "质检清单",
-      "desc": "检验表模板",
-      "category": "工程",
-      "icon": "✅",
-      "skill_type": "prompt",
-      "hot_rank": 20,
-      "hot": true,
-      "tags": [
-        "质量",
-        "检验",
-        "工程"
-      ],
-      "skill_md": "# 质检\n检查项模板。"
-    },
-    {
-      "name": "site_test_record",
-      "display": "现场测试记录",
-      "desc": "机电测试记录表",
-      "category": "工程",
-      "icon": "🔧",
-      "skill_type": "prompt",
-      "hot_rank": 21,
-      "hot": true,
-      "tags": [
-        "测试",
-        "现场",
-        "机电"
-      ],
-      "skill_md": "# 现场测试\n记录模板。"
-    },
-    {
-      "name": "news_digest",
-      "display": "新闻摘要",
-      "desc": "多源新闻汇总",
-      "category": "研究",
-      "icon": "📰",
-      "skill_type": "prompt",
-      "hot_rank": 22,
-      "hot": true,
-      "tags": [
-        "新闻",
-        "摘要",
-        "Fetch"
-      ],
-      "skill_md": "# 新闻\nFetch 抓取摘要。"
-    },
-    {
-      "name": "python_automation",
-      "display": "Python 自动化",
-      "desc": "脚本生成与说明",
-      "category": "开发",
-      "icon": "🐍",
-      "skill_type": "prompt",
-      "hot_rank": 23,
-      "hot": true,
-      "tags": [
-        "Python",
-        "脚本",
-        "自动化"
-      ],
-      "skill_md": "# Python\n可执行脚本草稿。"
-    },
-    {
-      "name": "mindmap_outline",
-      "display": "思维导图大纲",
-      "desc": "层级要点结构",
-      "category": "效率",
-      "icon": "🧠",
-      "skill_type": "prompt",
-      "hot_rank": 24,
-      "hot": true,
-      "tags": [
-        "思维导图",
-        "大纲",
-        "整理"
-      ],
-      "skill_md": "# 导图\nMarkdown 层级。"
-    }
-  ],
-  "skills": [
-    {
-      "name": "web_access",
-      "display": "Web Access",
-      "desc": "【远程 v3】网页抓取摘要",
-      "category": "研究",
-      "icon": "🌐",
-      "skill_type": "prompt",
-      "tags": [
-        "网页",
-        "Fetch"
-      ],
-      "skill_md": "# Web\nFetch 抓取，禁止编造。"
-    },
-    {
-      "name": "file_organizer",
-      "display": "文件整理",
-      "skill_type": "tool",
-      "category": "效率",
-      "icon": "📂",
-      "hot_rank": 25,
-      "hot": true,
-      "tags": [
-        "文件",
-        "整理",
-        "exports"
-      ],
-      "recommended_mcp": [
-        "filesystem"
-      ],
-      "tools": [
-        {
-          "name": "list_exports_inventory",
-          "description": "列出 exports 目录并按扩展名分组",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "subpath": {
-                "type": "string"
-              }
-            },
-            "required": []
-          }
-        }
-      ],
-      "skill_md": "# 文件整理\n优先调用 list_exports_inventory。"
+      "status": "published",
+      "skill_version": "1.1.0",
+      "tags": ["PPT", "汇报", "演示"],
+      "recommended_tools": ["office_ppt_create"]
     }
   ],
   "experts": [
@@ -440,60 +136,45 @@
       "provider": "Buddy 远程",
       "category": "技术工程",
       "desc": "MCP 配置排查",
-      "tags": [
-        "MCP",
-        "热门"
-      ],
+      "tags": ["MCP", "热门"],
       "hot": true,
-      "prompt": "你是 MCP 配置顾问。"
+      "prompt": "你是 MCP 配置顾问。帮助用户启用 Filesystem/GitHub/Fetch 等 MCP，解释 Test & reload、Token、Node.js 依赖。回答要步骤清晰。"
     },
     {
       "name": "GitHub 协作顾问",
       "provider": "Buddy 远程",
       "category": "技术工程",
       "desc": "Issue/PR 流程",
-      "tags": [
-        "GitHub",
-        "热门"
-      ],
+      "tags": ["GitHub", "热门"],
       "hot": true,
-      "prompt": "你是 GitHub 协作顾问。"
+      "prompt": "你是 GitHub 协作顾问。帮助用户创建 Issue、查看 PR diff、理解 CI 状态。优先建议使用 GitHub MCP。"
     },
     {
       "name": "投标方案润色",
       "provider": "DNA 远程",
       "category": "办公效率",
       "desc": "投标技术方案",
-      "tags": [
-        "投标",
-        "热门"
-      ],
+      "tags": ["投标", "热门"],
       "hot": true,
-      "prompt": "你是投标专家。"
+      "prompt": "你是投标专家。帮助用户解读招标文件、组织技术方案目录、润色响应条款。输出结构化 Markdown。"
     },
     {
       "name": "小红书运营专家",
       "provider": "Buddy 远程",
       "category": "内容创作",
       "desc": "爆款选题脚本",
-      "tags": [
-        "小红书",
-        "热门"
-      ],
+      "tags": ["小红书", "热门"],
       "hot": true,
-      "prompt": "你是小红书运营专家。"
+      "prompt": "你是小红书运营专家。帮助用户选题、写标题、正文与标签，风格贴近平台调性。"
     },
     {
       "name": "数据分析教练",
-      "provider": "Buddy 远程",
+      "provider": "DNA 远程",
       "category": "数据智能",
       "desc": "SQL/Excel/Python",
-      "tags": [
-        "数据",
-        "热门"
-      ],
+      "tags": ["数据", "热门"],
       "hot": true,
-      "prompt": "你是数据分析教练。"
+      "prompt": "你是数据分析教练。帮助用户写 SQL、设计 Excel 公式、解释 Python 数据处理代码。先问清数据表结构再给方案。"
     }
   ]
 }

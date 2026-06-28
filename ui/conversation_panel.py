@@ -22,7 +22,7 @@ from ui.widgets.message_widget import (
     WelcomeWidget, _qobject_alive,
 )
 from ui.widgets.mode_selector import ModeSelector
-from ui.workers import AgentWorker
+from ui.workers import AgentWorker, ExpertTeamWorker
 
 
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".ico"}
@@ -126,14 +126,11 @@ class _AttachmentStrip(QWidget):
         suffix = Path(path).suffix.lower()
         card = QFrame()
         card.setObjectName("AttachmentCard")
-        card.setFixedSize(90, 72)
-        card.setStyleSheet(
-            "background: #1E2233; border: 1px solid #303850; border-radius: 6px;"
-        )
+        card.setFixedSize(92, 76)
         card.setProperty("file_path", path)
         cl = QVBoxLayout(card)
-        cl.setContentsMargins(4, 4, 4, 2)
-        cl.setSpacing(2)
+        cl.setContentsMargins(6, 6, 6, 4)
+        cl.setSpacing(3)
 
         if suffix in IMAGE_EXTS:
             thumb = QLabel()
@@ -151,18 +148,15 @@ class _AttachmentStrip(QWidget):
             cl.addWidget(icon)
 
         name_lbl = QLabel(Path(path).name[:12])
+        name_lbl.setObjectName("AttachmentCardName")
         name_lbl.setAlignment(Qt.AlignCenter)
-        name_lbl.setStyleSheet("font-size: 9px; color: #9CA3AF; background: transparent;")
         cl.addWidget(name_lbl)
 
         remove_btn = QPushButton("×")
-        remove_btn.setFixedSize(18, 18)
+        remove_btn.setObjectName("AttachmentRemoveBtn")
+        remove_btn.setFixedSize(20, 20)
         remove_btn.setCursor(Qt.PointingHandCursor)
-        remove_btn.setStyleSheet(
-            "font-size: 12px; color: #EF4444; background: #2A2040;"
-            "border-radius: 9px; border: none;"
-        )
-        remove_btn.move(72, 0)
+        remove_btn.move(70, 2)
         remove_btn.setParent(card)
         remove_btn.clicked.connect(lambda _, p=path: self._remove(p))
 
@@ -230,6 +224,7 @@ class ConversationPanel(QFrame):
         self._step_widget: StepProgressMessage | None = None
         self._pending_plan = None
         self._expert_prompt: str = ""
+        self._active_team: dict | None = None
         self._active_skill_package: str = ""
         self._current_agent_msg: AgentMessage | None = None
         self._tool_call_count: int = 0
@@ -254,14 +249,23 @@ class ConversationPanel(QFrame):
     def _build_toolbar(self) -> QFrame:
         bar = QFrame()
         bar.setObjectName("ConversationToolbar")
-        bar.setFixedHeight(42)
+        bar.setFixedHeight(48)
         layout = QHBoxLayout(bar)
-        layout.setContentsMargins(16, 6, 16, 6)
-        layout.setSpacing(10)
+        layout.setContentsMargins(20, 8, 20, 8)
+        layout.setSpacing(12)
 
         self._conv_title = QLabel("")
         self._conv_title.setObjectName("ConvTitle")
         layout.addWidget(self._conv_title)
+
+        self._team_badge = QLabel("")
+        self._team_badge.setObjectName("MutedLabel")
+        self._team_badge.setVisible(False)
+        self._team_badge.setStyleSheet(
+            "color:#38bdf8; font-weight:600; padding:2px 8px; "
+            "background:rgba(56,189,248,0.12); border-radius:6px;"
+        )
+        layout.addWidget(self._team_badge)
 
         layout.addStretch()
 
@@ -305,8 +309,8 @@ class ConversationPanel(QFrame):
         area.setObjectName("InputArea")
         area.setAcceptDrops(True)
         layout = QVBoxLayout(area)
-        layout.setContentsMargins(16, 8, 16, 10)
-        layout.setSpacing(6)
+        layout.setContentsMargins(20, 10, 20, 14)
+        layout.setSpacing(8)
 
         self._attach_strip = _AttachmentStrip()
         self._attach_strip.attachment_removed.connect(self._on_attachment_removed)
@@ -315,7 +319,7 @@ class ConversationPanel(QFrame):
         self._input = _DropTextEdit()
         self._input.setObjectName("ChatInput")
         self._input.setPlaceholderText(t("chat_input_placeholder"))
-        self._input.setFixedHeight(80)
+        self._input.setFixedHeight(88)
         self._input.installEventFilter(self)
         self._input.files_dropped.connect(self._on_files_dropped)
         layout.addWidget(self._input)
@@ -411,7 +415,7 @@ class ConversationPanel(QFrame):
         self._send_btn.setObjectName("SendButton")
         self._send_btn.setToolTip("发送 (Enter)")
         self._send_btn.setCursor(Qt.PointingHandCursor)
-        self._send_btn.setFixedSize(34, 34)
+        self._send_btn.setFixedSize(38, 38)
         self._send_btn.clicked.connect(self.send)
         bottom_bar.addWidget(self._send_btn)
 
@@ -503,6 +507,8 @@ class ConversationPanel(QFrame):
 
     def _on_expert_changed(self, index: int) -> None:
         key = self._expert_combo.currentData()
+        self._active_team = None
+        self._team_badge.setVisible(False)
         for k, display, prompt in EXPERTS:
             if k == key:
                 self._expert_prompt = prompt
@@ -997,6 +1003,15 @@ class ConversationPanel(QFrame):
 
         history = get_messages(conv_id) if conv_id else []
 
+        if (
+            self._active_team
+            and mode in ("craft", "ask")
+            and not plan_execute
+            and not local_search_only
+        ):
+            self._run_team_worker(text, model, conv_id, thinking)
+            return
+
         worker = AgentWorker(
             text,
             model=model,
@@ -1018,6 +1033,106 @@ class ConversationPanel(QFrame):
             self._background_workers[conv_id] = worker
         self._ensure_worker_connected(worker)
         worker.start()
+
+    def _run_team_worker(
+        self,
+        text: str,
+        model: dict | None,
+        conv_id: int | None,
+        placeholder: AgentMessage,
+    ) -> None:
+        team = self._active_team or {}
+        worker = ExpertTeamWorker(
+            text,
+            team,
+            model=model,
+            conversation_id=conv_id,
+        )
+        self._worker = worker
+        worker.thinking.connect(
+            lambda msg, ph=placeholder: self._update_team_thinking(ph, msg)
+        )
+        worker.team_plan.connect(
+            lambda plan, ph=placeholder: self._update_team_thinking(ph, f"📋 分工计划\n{plan}")
+        )
+        worker.member_done.connect(self._on_team_member_done)
+        worker.final_reply.connect(
+            lambda reply, w=worker: self._handle_team_final(reply, w, placeholder)
+        )
+        worker.error.connect(
+            lambda err, w=worker, ph=placeholder: self._handle_team_error(err, w, ph)
+        )
+        worker.finished.connect(lambda w=worker: self._handle_worker_finished(w))  # type: ignore[arg-type]
+        worker.start()
+
+    def _update_team_thinking(self, placeholder: AgentMessage | None, text: str) -> None:
+        if placeholder and _qobject_alive(placeholder):
+            placeholder.setText(f"👥 {text}")
+
+    def _on_team_member_done(self, member: str, content: str) -> None:
+        preview = (content or "")[:120].replace("\n", " ")
+        if len(content or "") > 120:
+            preview += "…"
+        group = self._ensure_tool_group(self._run_placeholder)
+        group.add_tool(f"团员·{member}", {}, preview or "（已完成）")
+
+    def _handle_team_final(
+        self,
+        reply: str,
+        worker: ExpertTeamWorker,
+        placeholder: AgentMessage | None,
+    ) -> None:
+        conv_id = worker.conversation_id or self._conversation_id
+        if self._tool_group:
+            self._tool_group.finalize()
+            self._tool_group.set_collapsed(True)
+        self._append_assistant_message(reply, conv_id, placeholder)
+        self._tool_group = None
+        self._run_placeholder = None
+        self._set_busy(False)
+        from core.settings_runtime import play_notification_sound, try_extract_chat_memory
+        try_extract_chat_memory(getattr(self, "_last_user_text", ""), reply)
+        play_notification_sound()
+        self._scroll_to_bottom()
+
+    def _handle_team_error(
+        self,
+        error: str,
+        worker: ExpertTeamWorker,
+        placeholder: AgentMessage | None,
+    ) -> None:
+        conv_id = worker.conversation_id or self._conversation_id
+        if conv_id:
+            add_message(conv_id, "assistant", f"❌ 专家团错误：{error}")
+        self._append_assistant_message(
+            f"❌ 专家团错误：{error}", conv_id, placeholder, save_db=False,
+        )
+        self._tool_group = None
+        self._run_placeholder = None
+        self._set_busy(False)
+        self._scroll_to_bottom()
+
+    def set_expert(self, name: str, prompt: str, *, team: dict | None = None) -> None:
+        self._expert_prompt = prompt
+        self._active_team = team if team and team.get("kind") == "team" else None
+        if self._active_team:
+            n = len(self._active_team.get("members") or [])
+            self._team_badge.setText(f"👥 专家团并行 · {n} 位成员")
+            self._team_badge.setVisible(True)
+            self._conv_title.setText(f"👥 {name}")
+        else:
+            self._team_badge.setVisible(False)
+            if name:
+                self._conv_title.setText(f"👤 {name}")
+        idx = self._expert_combo.findText(name, Qt.MatchContains)
+        if idx >= 0:
+            self._expert_combo.setCurrentIndex(idx)
+        else:
+            prefix = "👥" if self._active_team else "👤"
+            self._expert_combo.blockSignals(True)
+            self._expert_combo.addItem(f"{prefix} {name}", f"custom_{name}")
+            self._expert_combo.setCurrentIndex(self._expert_combo.count() - 1)
+            self._expert_combo.blockSignals(False)
 
     def _hide_run_placeholder(self, placeholder: AgentMessage | None) -> None:
         if placeholder and _qobject_alive(placeholder) and _is_placeholder_message(placeholder):
@@ -1139,17 +1254,6 @@ class ConversationPanel(QFrame):
             self._send_continue_text("好的，请继续执行。")
         else:
             self._send_continue_text("不用了，取消这次操作。")
-
-    def set_expert(self, name: str, prompt: str) -> None:
-        self._expert_prompt = prompt
-        idx = self._expert_combo.findText(f"👤 {name}", Qt.MatchContains)
-        if idx >= 0:
-            self._expert_combo.setCurrentIndex(idx)
-        else:
-            self._expert_combo.blockSignals(True)
-            self._expert_combo.addItem(f"👤 {name}", f"custom_{name}")
-            self._expert_combo.setCurrentIndex(self._expert_combo.count() - 1)
-            self._expert_combo.blockSignals(False)
 
     def _attach_file(self) -> None:
         paths, _ = QFileDialog.getOpenFileNames(

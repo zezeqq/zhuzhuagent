@@ -120,3 +120,78 @@ class AgentWorker(QThread):
         except Exception as exc:
             if not self._cancelled:
                 self.error.emit(str(exc))
+
+
+class ExpertTeamWorker(QThread):
+    """专家团真并行：团长拆解 → 成员并发 LLM → 团长汇总。"""
+
+    thinking = Signal(str)
+    team_plan = Signal(str)
+    member_done = Signal(str, str)
+    final_reply = Signal(str)
+    error = Signal(str)
+
+    def __init__(
+        self,
+        text: str,
+        team: dict,
+        model: dict | None = None,
+        *,
+        custom_experts: list[dict] | None = None,
+        conversation_id: int | None = None,
+    ):
+        super().__init__()
+        self.text = text
+        self.team = team
+        self.model = model
+        self.custom_experts = custom_experts or []
+        self.conversation_id = conversation_id
+        self._cancelled = False
+        self._sections: list[tuple[str, str]] = []
+
+    def cancel(self) -> None:
+        self._cancelled = True
+
+    def _progress(self, event: dict) -> None:
+        if self._cancelled:
+            return
+        et = event.get("type")
+        if et == "thinking":
+            self.thinking.emit(str(event.get("content", "")))
+        elif et == "team_plan":
+            self.team_plan.emit(str(event.get("content", "")))
+        elif et == "member_done":
+            name = str(event.get("member", ""))
+            content = str(event.get("content", ""))
+            self._sections.append((name, content))
+            self.member_done.emit(name, content)
+        elif et == "team_sections":
+            self._sections = list(event.get("sections") or self._sections)
+
+    def run(self) -> None:
+        from core.expert_team_runner import run_expert_team_parallel
+
+        try:
+            if not self.model:
+                self.error.emit("专家团并行需要先在设置中配置 AI 模型。")
+                return
+            final = run_expert_team_parallel(
+                self.team,
+                self.text,
+                self.model,
+                custom_experts=self.custom_experts,
+                progress=self._progress,
+            )
+            if self._cancelled:
+                self.final_reply.emit("已取消执行。")
+                return
+            body_parts = [f"# 👥 {self.team.get('name', '专家团')} · 协作报告\n"]
+            if self._sections:
+                body_parts.append("## 成员并行产出\n")
+                for name, content in self._sections:
+                    body_parts.append(f"### {name}\n{content}\n")
+            body_parts.append(f"## 团长汇总交付\n{final}")
+            self.final_reply.emit("\n".join(body_parts))
+        except Exception as exc:
+            if not self._cancelled:
+                self.error.emit(str(exc))
