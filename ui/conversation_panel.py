@@ -531,6 +531,18 @@ class ConversationPanel(QFrame):
         self._skill_combo.setCurrentIndex(idx if idx >= 0 else 0)
         self._skill_combo.blockSignals(False)
 
+    def activate_skill_package(self, package_name: str) -> None:
+        """安装 Skill 后选中底栏 Skill 下拉（仅此 Skill 注入 Agent）。"""
+        if not hasattr(self, "_skill_combo"):
+            return
+        self._load_skill_combo()
+        key = package_name.strip().lower().replace(" ", "_")
+        for i in range(self._skill_combo.count()):
+            data = (self._skill_combo.itemData(i) or "").strip().lower().replace(" ", "_")
+            if data == key:
+                self._skill_combo.setCurrentIndex(i)
+                return
+
     def _active_skill_package(self) -> str:
         if not hasattr(self, "_skill_combo"):
             return ""

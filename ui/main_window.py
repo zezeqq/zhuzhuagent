@@ -169,6 +169,7 @@ class MainWindow(QMainWindow):
         self._conversation.artifact_created.connect(self._results.add_artifact)
 
         self._expert_center.expert_selected.connect(self._on_expert_selected)
+        self._expert_center.skill_installed.connect(self._on_skill_installed)
         self._more_page.prompt_selected.connect(self._on_inspiration_prompt)
 
         self._automation_page.automation_triggered.connect(self._on_automation_triggered)
@@ -250,6 +251,11 @@ class MainWindow(QMainWindow):
         self._on_page_changed("assistant")
         self._sidebar.highlight_nav("assistant")
         self._conversation.set_expert(name, prompt)
+
+    def _on_skill_installed(self, package_name: str, display_name: str) -> None:
+        self._conversation.activate_skill_package(package_name)
+        self._on_page_changed("assistant")
+        self._sidebar.highlight_nav("assistant")
 
     def _on_automation_triggered(self, conv_id: int) -> None:
         self._on_page_changed("assistant")

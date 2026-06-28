@@ -1,130 +1,404 @@
 {
-  "version": 2,
+  "version": 3,
   "updated_at": "2026-06-28",
   "hot_skills": [
     {
       "name": "github_helper",
       "display": "GitHub 助手",
-      "desc": "查 Issue/PR、读仓库、协作流程（MCP GitHub）",
+      "desc": "Issue/PR/仓库文件",
       "category": "开发",
       "icon": "🐙",
       "skill_type": "prompt",
       "hot_rank": 1,
-      "featured": true,
-      "recommended_mcp": ["github"],
-      "skill_md": "# GitHub 助手\n\n用户询问 GitHub 仓库、Issue、PR 时使用。\n\n1. 确认 owner/repo\n2. 调用 mcp__github__* 工具\n3. 汇总并附链接\n"
+      "hot": true,
+      "tags": [
+        "GitHub",
+        "MCP",
+        "代码"
+      ],
+      "skill_md": "# GitHub\n用 mcp__github__* 查仓库。"
     },
     {
       "name": "mcp_setup_guide",
       "display": "MCP 配置向导",
-      "desc": "排查 Filesystem / GitHub / Fetch 启用问题",
+      "desc": "启用 Filesystem/GitHub/Fetch",
       "category": "远程",
       "icon": "🔌",
       "skill_type": "prompt",
       "hot_rank": 2,
-      "featured": true,
-      "skill_md": "# MCP 配置向导\n\n检查 Node.js、npx PATH、Token、Test & reload。\n"
+      "hot": true,
+      "tags": [
+        "MCP",
+        "配置"
+      ],
+      "skill_md": "# MCP\n排查 npx PATH 与 Token。"
     },
     {
       "name": "deep_research_pro",
       "display": "深度研究 Pro",
-      "desc": "多轮检索 + 交叉验证 + 结构化报告",
+      "desc": "多轮检索结构化报告",
       "category": "研究",
       "icon": "🔬",
       "skill_type": "prompt",
       "hot_rank": 3,
       "hot": true,
-      "recommended_mcp": ["brave-search", "fetch"],
-      "skill_md": "# 深度研究 Pro\n\n拆解子问题、搜索、Fetch 读原文、输出带引用报告。\n"
+      "tags": [
+        "研究",
+        "搜索",
+        "报告"
+      ],
+      "skill_md": "# 研究\nBrave+Fetch 多轮检索。"
     },
     {
       "name": "xiaohongshu_writer",
       "display": "小红书爆款文案",
-      "desc": "标题 + 正文 + 标签，适配种草/测评",
+      "desc": "种草测评教程文案",
       "category": "创意",
       "icon": "📕",
       "skill_type": "prompt",
       "hot_rank": 4,
       "hot": true,
-      "skill_md": "# 小红书文案\n\n吸睛标题、分段正文、10 个话题标签。\n"
+      "tags": [
+        "小红书",
+        "文案",
+        "运营"
+      ],
+      "skill_md": "# 小红书\n标题+正文+标签。"
     },
     {
       "name": "weekly_report_gen",
-      "display": "周报/月报生成",
-      "desc": "结构化汇报：完成/进行中/风险/计划",
+      "display": "周报月报",
+      "desc": "结构化工作汇报",
       "category": "办公",
       "icon": "📊",
       "skill_type": "prompt",
       "hot_rank": 5,
       "hot": true,
-      "skill_md": "# 周报生成\n\n本周完成、进行中、风险、下周计划。\n"
+      "tags": [
+        "周报",
+        "汇报",
+        "办公"
+      ],
+      "skill_md": "# 周报\n完成/进行/风险/计划。"
     },
     {
       "name": "sql_analyst",
       "display": "SQL 数据分析",
-      "desc": "自然语言转 SQL 并解读结果",
+      "desc": "自然语言转 SQL",
       "category": "数据",
       "icon": "🗃",
       "skill_type": "prompt",
       "hot_rank": 6,
       "hot": true,
-      "skill_md": "# SQL 分析\n\n生成只读 SELECT，解读查询结果。\n"
+      "tags": [
+        "SQL",
+        "数据",
+        "分析"
+      ],
+      "skill_md": "# SQL\n只读查询与解读。"
     },
     {
       "name": "api_doc_helper",
-      "display": "API 对接助手",
-      "desc": "读 API 文档，生成调用示例",
+      "display": "API 对接",
+      "desc": "读文档生成示例",
       "category": "开发",
       "icon": "🔗",
       "skill_type": "prompt",
       "hot_rank": 7,
       "hot": true,
-      "skill_md": "# API 对接\n\ncurl/Python 示例、鉴权、错误码说明。\n"
+      "tags": [
+        "API",
+        "开发",
+        "接口"
+      ],
+      "skill_md": "# API\ncurl/Python 示例。"
     },
     {
       "name": "contract_review_lite",
       "display": "合同要点审查",
-      "desc": "提取付款、违约、争议等风险点",
+      "desc": "风险条款提取",
       "category": "办公",
       "icon": "📜",
       "skill_type": "prompt",
       "hot_rank": 8,
       "hot": true,
-      "skill_md": "# 合同审查 Lite\n\n列出关键条款与需人工复核点。\n"
+      "tags": [
+        "合同",
+        "法务",
+        "审查"
+      ],
+      "skill_md": "# 合同\n付款违约争议要点。"
     },
     {
       "name": "resume_polish",
       "display": "简历优化",
-      "desc": "STAR 法则改写项目经历",
+      "desc": "STAR 法则改写",
       "category": "办公",
       "icon": "📝",
       "skill_type": "prompt",
       "hot_rank": 9,
       "hot": true,
-      "skill_md": "# 简历优化\n\n按 JD 调整关键词，量化成果。\n"
+      "tags": [
+        "简历",
+        "求职",
+        "HR"
+      ],
+      "skill_md": "# 简历\n量化成果。"
     },
     {
       "name": "highway_bid_outline",
       "display": "公路机电投标大纲",
-      "desc": "按评分项生成技术方案目录",
+      "desc": "按评分项生成目录",
       "category": "工程",
       "icon": "🛣",
       "skill_type": "prompt",
       "hot_rank": 10,
       "hot": true,
-      "skill_md": "# 公路机电投标大纲\n\n总体方案、各系统响应、人员设备、进度质保。\n"
+      "tags": [
+        "投标",
+        "公路",
+        "机电"
+      ],
+      "skill_md": "# 投标\n技术方案目录。"
+    },
+    {
+      "name": "meeting_minutes_pro",
+      "display": "会议纪要 Pro",
+      "desc": "录音/文字转纪要",
+      "category": "办公",
+      "icon": "📝",
+      "skill_type": "prompt",
+      "hot_rank": 11,
+      "hot": true,
+      "tags": [
+        "会议",
+        "纪要",
+        "办公"
+      ],
+      "skill_md": "# 纪要\n决议与待办。"
+    },
+    {
+      "name": "code_review_pro",
+      "display": "代码审查 Pro",
+      "desc": "质量与安全建议",
+      "category": "开发",
+      "icon": "💻",
+      "skill_type": "prompt",
+      "hot_rank": 12,
+      "hot": true,
+      "tags": [
+        "代码",
+        "审查",
+        "开发"
+      ],
+      "skill_md": "# Code Review\n问题分级。"
+    },
+    {
+      "name": "excel_formula_helper",
+      "display": "Excel 公式助手",
+      "desc": "复杂公式与透视表",
+      "category": "办公",
+      "icon": "📈",
+      "skill_type": "prompt",
+      "hot_rank": 13,
+      "hot": true,
+      "tags": [
+        "Excel",
+        "表格",
+        "公式"
+      ],
+      "skill_md": "# Excel\n公式与步骤。"
+    },
+    {
+      "name": "ppt_storyline",
+      "display": "PPT 故事线",
+      "desc": "汇报叙事结构",
+      "category": "办公",
+      "icon": "📽",
+      "skill_type": "prompt",
+      "hot_rank": 14,
+      "hot": true,
+      "tags": [
+        "PPT",
+        "汇报",
+        "演示"
+      ],
+      "skill_md": "# PPT\n故事线+页标题。"
+    },
+    {
+      "name": "email_business",
+      "display": "商务邮件",
+      "desc": "正式邮件模板",
+      "category": "办公",
+      "icon": "✉",
+      "skill_type": "prompt",
+      "hot_rank": 15,
+      "hot": true,
+      "tags": [
+        "邮件",
+        "商务",
+        "沟通"
+      ],
+      "skill_md": "# 邮件\n主题正文签名。"
+    },
+    {
+      "name": "unit_test_gen",
+      "display": "单元测试生成",
+      "desc": "pytest 用例草稿",
+      "category": "开发",
+      "icon": "🧪",
+      "skill_type": "prompt",
+      "hot_rank": 16,
+      "hot": true,
+      "tags": [
+        "测试",
+        "Python",
+        "pytest"
+      ],
+      "skill_md": "# 测试\n边界用例。"
+    },
+    {
+      "name": "docker_compose_helper",
+      "display": "Docker 编排",
+      "desc": "compose 模板",
+      "category": "开发",
+      "icon": "🐳",
+      "skill_type": "prompt",
+      "hot_rank": 17,
+      "hot": true,
+      "tags": [
+        "Docker",
+        "DevOps",
+        "部署"
+      ],
+      "skill_md": "# Docker\n服务编排。"
+    },
+    {
+      "name": "log_analyzer",
+      "display": "日志分析",
+      "desc": "错误模式归纳",
+      "category": "开发",
+      "icon": "📋",
+      "skill_type": "prompt",
+      "hot_rank": 18,
+      "hot": true,
+      "tags": [
+        "日志",
+        "排查",
+        "运维"
+      ],
+      "skill_md": "# 日志\n异常聚合。"
+    },
+    {
+      "name": "tender_doc_reader",
+      "display": "招标文件解读",
+      "desc": "提取评分与技术条款",
+      "category": "工程",
+      "icon": "📑",
+      "skill_type": "prompt",
+      "hot_rank": 19,
+      "hot": true,
+      "tags": [
+        "招标",
+        "投标",
+        "解读"
+      ],
+      "skill_md": "# 招标\n评分项清单。"
+    },
+    {
+      "name": "quality_checklist_gen",
+      "display": "质检清单",
+      "desc": "检验表模板",
+      "category": "工程",
+      "icon": "✅",
+      "skill_type": "prompt",
+      "hot_rank": 20,
+      "hot": true,
+      "tags": [
+        "质量",
+        "检验",
+        "工程"
+      ],
+      "skill_md": "# 质检\n检查项模板。"
+    },
+    {
+      "name": "site_test_record",
+      "display": "现场测试记录",
+      "desc": "机电测试记录表",
+      "category": "工程",
+      "icon": "🔧",
+      "skill_type": "prompt",
+      "hot_rank": 21,
+      "hot": true,
+      "tags": [
+        "测试",
+        "现场",
+        "机电"
+      ],
+      "skill_md": "# 现场测试\n记录模板。"
+    },
+    {
+      "name": "news_digest",
+      "display": "新闻摘要",
+      "desc": "多源新闻汇总",
+      "category": "研究",
+      "icon": "📰",
+      "skill_type": "prompt",
+      "hot_rank": 22,
+      "hot": true,
+      "tags": [
+        "新闻",
+        "摘要",
+        "Fetch"
+      ],
+      "skill_md": "# 新闻\nFetch 抓取摘要。"
+    },
+    {
+      "name": "python_automation",
+      "display": "Python 自动化",
+      "desc": "脚本生成与说明",
+      "category": "开发",
+      "icon": "🐍",
+      "skill_type": "prompt",
+      "hot_rank": 23,
+      "hot": true,
+      "tags": [
+        "Python",
+        "脚本",
+        "自动化"
+      ],
+      "skill_md": "# Python\n可执行脚本草稿。"
+    },
+    {
+      "name": "mindmap_outline",
+      "display": "思维导图大纲",
+      "desc": "层级要点结构",
+      "category": "效率",
+      "icon": "🧠",
+      "skill_type": "prompt",
+      "hot_rank": 24,
+      "hot": true,
+      "tags": [
+        "思维导图",
+        "大纲",
+        "整理"
+      ],
+      "skill_md": "# 导图\nMarkdown 层级。"
     }
   ],
   "skills": [
     {
       "name": "web_access",
       "display": "Web Access",
-      "desc": "【远程 v2】网页抓取与摘要",
+      "desc": "【远程 v3】网页抓取摘要",
       "category": "研究",
       "icon": "🌐",
       "skill_type": "prompt",
-      "recommended_mcp": ["fetch", "brave-search"],
-      "skill_md": "# Web Access v2\n\n先搜索再抓取，禁止编造。\n"
+      "tags": [
+        "网页",
+        "Fetch"
+      ],
+      "skill_md": "# Web\nFetch 抓取，禁止编造。"
     }
   ],
   "experts": [
@@ -132,17 +406,23 @@
       "name": "MCP 配置顾问",
       "provider": "Buddy 远程",
       "category": "技术工程",
-      "desc": "配置 MCP、排查 npx/Token",
-      "tags": ["MCP", "远程", "热门"],
+      "desc": "MCP 配置排查",
+      "tags": [
+        "MCP",
+        "热门"
+      ],
       "hot": true,
-      "prompt": "你是 MCP 配置顾问。步骤清晰。"
+      "prompt": "你是 MCP 配置顾问。"
     },
     {
       "name": "GitHub 协作顾问",
       "provider": "Buddy 远程",
       "category": "技术工程",
-      "desc": "Issue/PR/Review 流程",
-      "tags": ["GitHub", "远程", "热门"],
+      "desc": "Issue/PR 流程",
+      "tags": [
+        "GitHub",
+        "热门"
+      ],
       "hot": true,
       "prompt": "你是 GitHub 协作顾问。"
     },
@@ -150,17 +430,23 @@
       "name": "投标方案润色",
       "provider": "DNA 远程",
       "category": "办公效率",
-      "desc": "公路机电投标技术方案润色",
-      "tags": ["投标", "远程", "热门"],
+      "desc": "投标技术方案",
+      "tags": [
+        "投标",
+        "热门"
+      ],
       "hot": true,
-      "prompt": "你是投标技术方案专家。"
+      "prompt": "你是投标专家。"
     },
     {
       "name": "小红书运营专家",
       "provider": "Buddy 远程",
       "category": "内容创作",
-      "desc": "爆款选题与脚本",
-      "tags": ["小红书", "远程", "热门"],
+      "desc": "爆款选题脚本",
+      "tags": [
+        "小红书",
+        "热门"
+      ],
       "hot": true,
       "prompt": "你是小红书运营专家。"
     },
@@ -168,8 +454,11 @@
       "name": "数据分析教练",
       "provider": "Buddy 远程",
       "category": "数据智能",
-      "desc": "Excel/SQL/Python 分析路径",
-      "tags": ["数据", "远程", "热门"],
+      "desc": "SQL/Excel/Python",
+      "tags": [
+        "数据",
+        "热门"
+      ],
       "hot": true,
       "prompt": "你是数据分析教练。"
     }

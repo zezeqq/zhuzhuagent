@@ -8,10 +8,12 @@ import threading
 
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtWidgets import (
+    QApplication,
     QDialog, QFormLayout, QFrame, QGridLayout, QHBoxLayout, QLabel,
-    QLineEdit, QMessageBox, QPushButton, QScrollArea, QStackedWidget,
+    QLineEdit, QPushButton, QScrollArea, QStackedWidget,
     QTextEdit, QVBoxLayout, QWidget,
 )
+from ui.dialogs.buddy_message import ask_confirm, show_error, show_info, show_success, show_warning
 
 from db.database import query_all, query_one
 
@@ -161,10 +163,7 @@ class _SkillCard(QFrame):
         self._skill = skill
         self._planned = is_planned_skill(skill)
         if hot:
-            self.setStyleSheet(
-                "QFrame#HotSkillCard { border: 1px solid #f97316; border-radius: 10px; "
-                "background: rgba(249,115,22,0.06); }"
-            )
+            self.setFixedHeight(88)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(10)
@@ -537,10 +536,35 @@ def _on_filter_click(bar: QFrame, category: str, callback):
     callback(category)
 
 
+def _skill_matches_query(skill: dict, q: str) -> bool:
+    if not q:
+        return True
+    tags = " ".join(str(t) for t in (skill.get("tags") or []))
+    blob = " ".join([
+        skill.get("name", ""),
+        skill.get("display", ""),
+        skill.get("desc", ""),
+        skill.get("category", ""),
+        tags,
+    ]).lower()
+    return q in blob
+
+
+def _clear_grid_layout(layout: QGridLayout) -> None:
+    while layout.count():
+        item = layout.takeAt(0)
+        widget = item.widget()
+        if widget:
+            widget.setParent(None)
+            widget.deleteLater()
+    QApplication.processEvents()
+
+
 # ── Main Page ────────────────────────────────────────────────────────────
 
 class ExpertCenterPage(QFrame):
     expert_selected = Signal(str, str)
+    skill_installed = Signal(str, str)
     _remote_catalog_done = Signal(object)
 
     def __init__(self, parent=None):
@@ -554,6 +578,7 @@ class ExpertCenterPage(QFrame):
         self._connector_cards: list[_ConnectorCard] = []
         self._installed_skill_names: set[str] = set()
         self._catalog_refresh_busy = False
+        self._hot_skill_names: set[str] = set()
         self._remote_catalog_done.connect(self._finish_remote_refresh)
 
         layout = QVBoxLayout(self)
@@ -580,7 +605,7 @@ class ExpertCenterPage(QFrame):
         top_layout.addStretch()
 
         self._search = QLineEdit()
-        self._search.setPlaceholderText("搜索专家称号或描述")
+        self._search.setPlaceholderText("搜索名称、描述或标签")
         self._search.setFixedWidth(200)
         self._search.setFixedHeight(30)
         self._search.textChanged.connect(self._on_search_changed)
@@ -822,7 +847,14 @@ class ExpertCenterPage(QFrame):
         self._hot_skill_grid_widget = QWidget()
         self._hot_skill_grid = QGridLayout(self._hot_skill_grid_widget)
         self._hot_skill_grid.setSpacing(10)
-        layout.addWidget(self._hot_skill_grid_widget)
+        self._hot_skill_grid.setContentsMargins(0, 0, 0, 0)
+        self._hot_scroll = QScrollArea()
+        self._hot_scroll.setWidgetResizable(True)
+        self._hot_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._hot_scroll.setMaximumHeight(300)
+        self._hot_scroll.setWidget(self._hot_skill_grid_widget)
+        self._hot_scroll.setObjectName("PageScroll")
+        layout.addWidget(self._hot_scroll)
 
         rec_title = QLabel("全部技能")
         rec_title.setObjectName("SectionTitle")
@@ -836,8 +868,8 @@ class ExpertCenterPage(QFrame):
         self._skill_grid.setSpacing(10)
         layout.addWidget(self._skill_grid_widget)
 
-        self._populate_skill_grid(all_catalog_skills())
         self._refresh_hot_skills_ui()
+        self._populate_skill_grid(all_catalog_skills())
 
         layout.addStretch()
         scroll.setWidget(content)
@@ -869,42 +901,49 @@ class ExpertCenterPage(QFrame):
                 f"远程目录：{url} · 正在拉取，请稍候或点「从网络刷新」"
             )
 
-    def _refresh_hot_skills_ui(self):
-        while self._hot_skill_grid.count():
-            item = self._hot_skill_grid.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+    def _rebuild_hot_grid_container(self) -> None:
+        new_w = QWidget()
+        new_layout = QGridLayout(new_w)
+        new_layout.setSpacing(10)
+        new_layout.setContentsMargins(0, 0, 0, 0)
+        self._hot_scroll.takeWidget()
+        if self._hot_skill_grid_widget:
+            self._hot_skill_grid_widget.deleteLater()
+        self._hot_skill_grid_widget = new_w
+        self._hot_skill_grid = new_layout
+        self._hot_scroll.setWidget(new_w)
 
-        show_hot = self._skill_filter_cat == "全部" and not self._search_text
+    def _refresh_hot_skills_ui(self):
+        self._rebuild_hot_grid_container()
+
+        show_hot = self._skill_filter_cat == "全部"
         self._hot_section_title.setVisible(show_hot)
         self._hot_status.setVisible(show_hot)
-        self._hot_skill_grid_widget.setVisible(show_hot)
+        self._hot_scroll.setVisible(show_hot)
         if not show_hot:
             return
 
         hot_skills = list_hot_remote_skills()
         if self._search_text:
-            q = self._search_text
-            hot_skills = [
-                s for s in hot_skills
-                if q in s.get("name", "").lower()
-                or q in s.get("display", "").lower()
-                or q in s.get("desc", "").lower()
-            ]
+            hot_skills = [s for s in hot_skills if _skill_matches_query(s, self._search_text)]
 
         if not hot_skills:
             self._hot_status.setText("暂无远程热门（点「从网络刷新」或检查网络）")
             return
 
         self._hot_status.setText(
-            f"共 {len(hot_skills)} 个热门 Skill（来自 GitHub 远程目录，可安装使用）"
+            f"共 {len(hot_skills)} 个热门 Skill · 支持搜索名称/描述/标签 · 点 + 安装后下条 Craft 对话生效"
         )
+        hot_names = {s.get("name", "").lower() for s in hot_skills}
+        self._hot_skill_names = hot_names
+
+        cols = 2
         for i, s in enumerate(hot_skills):
             installed = is_skill_installed(s, self._installed_skill_names)
             card = _SkillCard(s, installed=installed, hot=True)
             card.install_requested.connect(self._on_skill_install)
             self._skill_cards[s["name"]] = card
-            self._hot_skill_grid.addWidget(card, i // 3, i % 3)
+            self._hot_skill_grid.addWidget(card, i // cols, i % cols)
 
     def _refresh_remote_catalog(self):
         self._run_remote_catalog_fetch(force=True, show_dialog=True)
@@ -921,31 +960,33 @@ class ExpertCenterPage(QFrame):
         self._update_catalog_status_label()
         self._filter_experts(self._expert_filter_cat)
         self._filter_skills(self._skill_filter_cat)
-        self._refresh_hot_skills_ui()
 
         if not show_dialog:
             return
         if err:
-            QMessageBox.warning(self, "刷新失败", f"无法拉取远程目录：\n{err}")
+            show_error(self, "刷新失败", "无法拉取远程目录。", detail=str(err))
         else:
             cached = load_cached_catalog() or {}
             n_hot = len(cached.get("hot_skills") or [])
             n_skills = len(cached.get("skills") or [])
             n_experts = len(cached.get("experts") or [])
-            QMessageBox.information(
-                self, "刷新完成",
-                f"已从网络更新目录。\n\n"
-                f"🔥 热门 Skill：{n_hot} 个（顶部橙色区域）\n"
-                f"覆盖更新：{n_skills} 个\n"
-                f"远程专家：{n_experts} 个",
+            show_success(
+                self,
+                "目录已更新",
+                f"已从网络同步最新 Skill 目录。",
+                detail=(
+                    f"🔥 热门 Skill：{n_hot} 个（见上方橙色区域）\n"
+                    f"覆盖更新：{n_skills} 个\n"
+                    f"远程专家：{n_experts} 个\n\n"
+                    f"在搜索框输入关键词（如「投标」「SQL」「小红书」）可快速筛选。"
+                ),
             )
 
     def _populate_skill_grid(self, skills: list[dict]):
-        while self._skill_grid.count():
-            item = self._skill_grid.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-        self._skill_cards.clear()
+        _clear_grid_layout(self._skill_grid)
+        hot_names = getattr(self, "_hot_skill_names", set())
+        if hot_names and self._skill_filter_cat == "全部" and not self._search_text:
+            skills = [s for s in skills if s.get("name", "").lower() not in hot_names]
 
         for i, s in enumerate(skills):
             pkg_name = s["name"].strip().lower().replace(" ", "_")
@@ -960,26 +1001,20 @@ class ExpertCenterPage(QFrame):
         filtered = catalog_skills_for_category(category)
 
         if self._search_text:
-            q = self._search_text.lower()
-            filtered = [
-                s for s in filtered
-                if q in s.get("name", "").lower()
-                or q in s.get("display", "").lower()
-                or q in s.get("desc", "").lower()
-            ]
+            filtered = [s for s in filtered if _skill_matches_query(s, self._search_text)]
 
-        self._populate_skill_grid(filtered)
         self._refresh_hot_skills_ui()
+        self._populate_skill_grid(filtered)
 
     def _on_skill_install(self, skill_name: str):
         from agent_runtime.tool_executor import load_installed_handlers
 
         skill_data = skill_by_name(skill_name)
         if not skill_data:
-            QMessageBox.warning(self, "提示", f"未找到技能「{skill_name}」的信息。")
+            show_warning(self, "未找到", f"未找到技能「{skill_name}」的信息。")
             return
         if is_planned_skill(skill_data):
-            QMessageBox.information(
+            show_info(
                 self, "规划中",
                 f"「{skill_data.get('display', skill_name)}」尚在规划中，暂不可安装。",
             )
@@ -988,21 +1023,33 @@ class ExpertCenterPage(QFrame):
         try:
             result = install_from_catalog(skill_data)
             load_installed_handlers()
-            pkg = result.get("package_name", "")
+            pkg = result.get("package_name", "") or skill_name
+            display = skill_data.get("display") or skill_name
             self._installed_skill_names.add(skill_name)
             if pkg:
-                self._installed_skill_names.add(pkg)
+                self._installed_skill_names.add(pkg.lower())
+            self._installed_skill_names.add(display.lower())
 
             card = self._skill_cards.get(skill_name)
             if card:
                 card.mark_installed()
+            self._refresh_hot_skills_ui()
+            self._filter_skills(self._skill_filter_cat)
 
-            QMessageBox.information(
-                self, "安装成功",
-                install_success_message(skill_data, result.get("install_path", "")),
+            self.skill_installed.emit(pkg, display)
+            show_success(
+                self,
+                "已装配到 Agent",
+                f"技能「{display}」安装成功，已写入本地 Skill 目录。",
+                detail=(
+                    "✓ 下一条 Craft / Plan 对话将自动注入该 Skill 说明\n"
+                    "✓ 聊天底栏 Skill 下拉已切换为仅此 Skill\n"
+                    "✓ 含工具的 Skill 会注册专用函数\n\n"
+                    f"路径：{result.get('install_path', '')}"
+                ),
             )
         except Exception as e:
-            QMessageBox.critical(self, "安装失败", str(e))
+            show_error(self, "安装失败", str(e))
 
     def _install_from_url(self):
         dlg = _UrlInstallDialog(self)

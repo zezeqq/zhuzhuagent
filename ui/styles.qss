@@ -906,6 +906,42 @@ QPushButton[variant="pill"]:hover { border-color: @BLUE; color: @BLUE; }
     padding: 2px;
 }
 #ActionCard:hover { border-color: @BLUE; background-color: @CARD_HOVER; }
+#HotSkillCard {
+    background-color: rgba(249, 115, 22, 0.07);
+    border: 1px solid rgba(249, 115, 22, 0.55);
+    border-radius: 10px;
+    min-height: 72px;
+    max-height: 96px;
+}
+#HotSkillCard:hover {
+    border-color: #f97316;
+    background-color: rgba(249, 115, 22, 0.12);
+}
+#BuddyMessageDialog {
+    background: transparent;
+}
+#BuddyMessageCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 14px;
+}
+#BuddyMessageTitle {
+    font-size: 17px;
+    font-weight: 700;
+    color: @TEXT;
+    background: transparent;
+}
+#BuddyMessageBody {
+    font-size: 13px;
+    color: @TEXT;
+    line-height: 1.5;
+    background: transparent;
+}
+#BuddyMessageDetail {
+    background-color: @BG;
+    border: 1px solid @BORDER;
+    border-radius: 8px;
+}
 #CardTitle {
     color: @TEXT;
     font-size: 14px;
