@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build & packaging
+build/
+dist/
+*.spec.bak
+
+# Runtime data (SQLite, logs, uploads, user skills cache)
+data/*
+!data/.gitkeep
+
+# Local config with secrets (keep app_config.json template in config/)
+.env
+.env.*
+*.local.json
+
+# OS / tooling noise
+.DS_Store
+Thumbs.db
+$null
+*.log
+
+# Scratch / temp
+temp_*.ps1
+line_count.txt

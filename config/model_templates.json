@@ -1,0 +1,22 @@
+[
+  {
+    "provider_name": "DeepSeek",
+    "api_base": "https://api.deepseek.com",
+    "model_name": "deepseek-chat"
+  },
+  {
+    "provider_name": "OpenAI",
+    "api_base": "https://api.openai.com/v1",
+    "model_name": "gpt-4o-mini"
+  },
+  {
+    "provider_name": "Ollama 本地模型",
+    "api_base": "http://localhost:11434/v1",
+    "model_name": "llama3.1"
+  },
+  {
+    "provider_name": "LM Studio 本地模型",
+    "api_base": "http://localhost:1234/v1",
+    "model_name": "local-model"
+  }
+]

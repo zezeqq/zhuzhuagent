@@ -1,0 +1,8 @@
+{
+  "app_name": "🐷🐷Buddy",
+  "theme": "dark",
+  "save_chat_history": true,
+  "rag_top_k": 6,
+  "api_timeout_seconds": 60,
+  "note": "app_name 仅作参考；运行时以 core/app_identity.py 的 APP_NAME 为准。不要在此文件提交真实 API Key。"
+}

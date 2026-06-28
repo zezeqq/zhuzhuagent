@@ -1,0 +1,34 @@
+[
+  {
+    "software_name": "VS Code",
+    "enabled": false
+  },
+  {
+    "software_name": "PyCharm",
+    "enabled": false
+  },
+  {
+    "software_name": "Keil uVision",
+    "enabled": false
+  },
+  {
+    "software_name": "Chrome",
+    "enabled": false
+  },
+  {
+    "software_name": "Edge",
+    "enabled": false
+  },
+  {
+    "software_name": "Word",
+    "enabled": false
+  },
+  {
+    "software_name": "Excel",
+    "enabled": false
+  },
+  {
+    "software_name": "WPS",
+    "enabled": false
+  }
+]

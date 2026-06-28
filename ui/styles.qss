@@ -1,0 +1,1585 @@
+/* ================================================================
+   DNA Work Agent — Global Dark Theme (WorkBuddy-inspired)
+   Color tokens prefixed with @ are replaced at runtime by theme.py
+   ================================================================ */
+
+/* --- Global --- */
+QWidget {
+    background-color: @BG;
+    color: @TEXT;
+    font-family: "Microsoft YaHei UI", "Segoe UI", "PingFang SC", sans-serif;
+    font-size: @BASE_FONT;
+}
+
+QScrollBar:vertical {
+    width: 6px;
+    background: transparent;
+    margin: 0;
+}
+QScrollBar::handle:vertical {
+    background: @BORDER;
+    border-radius: 3px;
+    min-height: 30px;
+}
+QScrollBar::handle:vertical:hover { background: @WEAK; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { height: 0; background: none; }
+
+QScrollBar:horizontal {
+    height: 6px;
+    background: transparent;
+}
+QScrollBar::handle:horizontal {
+    background: @BORDER;
+    border-radius: 3px;
+    min-width: 30px;
+}
+QScrollBar::handle:horizontal:hover { background: @WEAK; }
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal { width: 0; background: none; }
+
+QToolTip {
+    background-color: @CARD;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+
+/* --- Main Window --- */
+QMainWindow {
+    background-color: @BG;
+}
+
+/* --- App Menu Bar --- */
+#AppMenuBar {
+    background-color: @SIDEBAR;
+    border: none;
+    border-bottom: 1px solid @BORDER;
+}
+#TitleBarButton, #TitleBarCloseButton {
+    background: transparent;
+    border: none;
+    color: @MUTED;
+    font-size: 12px;
+    min-width: 46px;
+    max-width: 46px;
+    min-height: 32px;
+    max-height: 32px;
+    padding: 0;
+    border-radius: 0;
+}
+#TitleBarButton:hover {
+    background: @HOVER;
+    color: @TEXT;
+}
+#TitleBarCloseButton:hover {
+    background: #e81123;
+    color: #ffffff;
+}
+#AppMenuText {
+    color: @MUTED;
+    font-size: 12px;
+    background: transparent;
+}
+#AppMenuText:first-child {
+    color: @TEXT;
+    font-weight: bold;
+}
+#AppMenuButton {
+    background: transparent;
+    color: @MUTED;
+    border: none;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-align: left;
+}
+#AppMenuButton:hover { background: @HOVER; color: @TEXT; }
+#AppMenuButton::menu-indicator { image: none; width: 0; }
+#MenuToggleButton {
+    background: transparent;
+    color: @MUTED;
+    border: none;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 4px;
+}
+#MenuToggleButton:hover { background: @HOVER; color: @TEXT; }
+
+/* --- Status Bar --- */
+#AppStatusBar {
+    background-color: @SIDEBAR;
+    color: @WEAK;
+    font-size: 11px;
+    border-top: 1px solid @BORDER;
+    padding: 2px 12px;
+}
+
+/* --- Main Splitter --- */
+#MainSplitter {
+    background-color: @BG;
+}
+#MainSplitter::handle {
+    background-color: @BORDER;
+    width: 1px;
+}
+
+/* ================================================================
+   LEFT PANEL — Task Sidebar
+   ================================================================ */
+#TaskSidebar {
+    background-color: @SIDEBAR;
+    border-right: 1px solid @BORDER;
+}
+#BrandName {
+    color: @TEXT;
+    font-size: 15px;
+    font-weight: 800;
+    background: transparent;
+}
+#BrandVersion {
+    color: @WEAK;
+    font-size: 11px;
+    background: transparent;
+}
+#NewTaskButton {
+    background-color: @BLUE;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 0;
+}
+#NewTaskButton:hover { background-color: @BLUE_HOVER; }
+#NewTaskButton:pressed { background-color: @SELECTED; }
+
+#SidebarSearch {
+    background-color: @INPUT;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+}
+#SidebarSearch:focus { border-color: @BLUE; }
+
+#FilterButton {
+    background: transparent;
+    color: @WEAK;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 11px;
+}
+#FilterButton:checked { color: @TEXT; background: @HOVER; }
+#FilterButton:hover { color: @MUTED; }
+
+#TaskListScroll {
+    background: transparent;
+    border: none;
+}
+#TaskListScroll > QWidget { background: transparent; }
+
+#TaskCard {
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 2px;
+}
+#TaskCard:hover { background-color: @HOVER; }
+#TaskCard[selected="true"] {
+    background-color: @BLUE_MUTED;
+    border-left: 3px solid @BLUE;
+}
+#TaskCardTitle {
+    color: @TEXT;
+    font-size: 13px;
+    background: transparent;
+}
+#TaskCardTime {
+    color: @WEAK;
+    font-size: 11px;
+    background: transparent;
+    padding-left: 26px;
+}
+#TaskBadge {
+    font-size: 11px;
+    background: transparent;
+    padding: 1px 4px;
+}
+#TaskBadge[tone="success"] { color: @SUCCESS; }
+#TaskBadge[tone="running"] { color: @BLUE; }
+#TaskBadge[tone="danger"] { color: @DANGER; }
+#TaskBadge[tone="warning"] { color: @WARNING; }
+
+#TaskListTools {
+    background: transparent;
+}
+#TaskMultiSelectButton {
+    font-size: 12px;
+    padding: 2px 8px;
+}
+#TaskCardCheck, #ArtifactCardCheck {
+    spacing: 0;
+}
+#BatchActionBar {
+    background-color: @CARD;
+    border-top: 1px solid @BORDER;
+    border-bottom: 1px solid @BORDER;
+}
+#BatchActionCount {
+    color: @MUTED;
+    font-size: 12px;
+    background: transparent;
+}
+#BatchActionButton {
+    font-size: 12px;
+    padding: 4px 10px;
+    min-height: 24px;
+}
+
+#SidebarAvatar {
+    background-color: @BLUE;
+    color: white;
+    border-radius: 18px;
+    font-size: 14px;
+    font-weight: bold;
+}
+#SidebarUserName {
+    color: @MUTED;
+    font-size: 12px;
+    background: transparent;
+}
+#SidebarIconButton {
+    background: transparent;
+    color: @MUTED;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+}
+#SidebarIconButton:hover { background: @HOVER; color: @TEXT; }
+
+/* ================================================================
+   CENTER PANEL — Conversation
+   ================================================================ */
+#ConversationPanel {
+    background-color: @BG;
+}
+#ConversationToolbar {
+    background-color: @TOOLBAR;
+    border-bottom: 1px solid @BORDER;
+}
+#ConversationToolbar QLabel {
+    color: @MUTED;
+    font-size: 12px;
+    background: transparent;
+}
+
+/* Mode Selector */
+#ModeSelector {
+    background-color: @CARD;
+    border-radius: 8px;
+    border: 1px solid @BORDER;
+    padding: 0;
+}
+#ModeButton {
+    background: transparent;
+    color: @MUTED;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    min-width: 64px;
+}
+#ModeButton:checked {
+    background-color: @BLUE;
+    color: white;
+}
+#ModeButton:hover:!checked { color: @TEXT; background: @HOVER; }
+
+#ToolbarCombo {
+    background-color: @CARD;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    min-height: 28px;
+}
+#ToolbarCombo::drop-down {
+    border: none;
+    width: 20px;
+}
+#ToolbarCombo QAbstractItemView {
+    background-color: @CARD;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    selection-background-color: @HOVER;
+}
+
+#ToolbarButton {
+    background: transparent;
+    color: @MUTED;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
+}
+#ToolbarButton:hover { background: @HOVER; color: @TEXT; }
+#ToolbarButton:checked { border-color: @BLUE; color: @BLUE; }
+
+#ToolbarSep {
+    background-color: @BORDER;
+}
+
+/* Message Area */
+#MessageScroll {
+    background: transparent;
+    border: none;
+}
+#MessageContainer {
+    background: transparent;
+}
+
+/* Welcome */
+#WelcomeTitle {
+    color: @TEXT;
+    font-size: 28px;
+    font-weight: 800;
+    background: transparent;
+}
+#WelcomeSubtitle {
+    color: @MUTED;
+    font-size: 14px;
+    background: transparent;
+}
+
+/* Messages */
+#UserMessage {
+    background-color: @CARD;
+    border-radius: 12px;
+    margin: 6px 60px 6px 120px;
+}
+#UserMessageText {
+    color: @TEXT;
+    font-size: 13px;
+    background: transparent;
+}
+#AgentMessage {
+    background-color: transparent;
+    border-left: 3px solid @BLUE;
+    margin: 6px 120px 6px 16px;
+    padding-left: 4px;
+}
+#AgentMessageHeader {
+    color: @BLUE;
+    font-size: 12px;
+    font-weight: 600;
+    background: transparent;
+}
+#AgentMessageText {
+    color: @TEXT;
+    font-size: 13px;
+    line-height: 1.6;
+    background: transparent;
+}
+#AgentMessageBrowser {
+    background: transparent;
+    color: @TEXT;
+    font-size: 13px;
+    border: none;
+    padding: 0;
+    selection-background-color: @BLUE_MUTED;
+}
+
+/* Step Progress */
+#StepProgressMessage {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 10px;
+    margin: 8px 80px 8px 16px;
+}
+#StepHeader {
+    color: @TEXT;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+}
+QLabel[step_status="running"] { color: @BLUE; }
+QLabel[step_status="completed"] { color: @SUCCESS; }
+QLabel[step_status="failed"] { color: @DANGER; }
+QLabel[step_status="pending"] { color: @WEAK; }
+
+/* Artifact Message */
+#ArtifactMessage {
+    background-color: @CARD;
+    border: 1px solid @SUCCESS;
+    border-radius: 10px;
+    margin: 8px 80px 8px 16px;
+}
+#ArtifactHeader {
+    color: @SUCCESS;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+}
+#ArtifactName {
+    color: @TEXT;
+    font-size: 13px;
+    background: transparent;
+}
+#ArtifactAction {
+    background: transparent;
+    color: @BLUE;
+    border: none;
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+#ArtifactAction:hover { background: @HOVER; }
+
+/* Plan Message */
+#PlanMessage {
+    background-color: @CARD;
+    border: 1px solid @INDIGO;
+    border-radius: 10px;
+    margin: 8px 80px 8px 16px;
+}
+#PlanHeader {
+    color: @INDIGO;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+}
+#PlanStep {
+    color: @TEXT;
+    font-size: 12px;
+    background: transparent;
+    padding: 2px 0;
+}
+
+/* Permission Request (inline approval) */
+#PermissionRequestMessage {
+    background-color: @CARD;
+    border: 1px solid @WARNING;
+    border-left: 4px solid @WARNING;
+    border-radius: 10px;
+    margin: 8px 80px 8px 16px;
+}
+#PermissionRequestHeader {
+    color: @WARNING;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+}
+#PermissionRequestSummary {
+    color: @TEXT;
+    font-size: 13px;
+    background: transparent;
+    line-height: 1.5;
+}
+#PermissionRequestArgs {
+    color: @MUTED;
+    font-size: 11px;
+    background-color: @INPUT;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 8px;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+}
+#PermissionRequestStatus {
+    color: @MUTED;
+    font-size: 12px;
+    background: transparent;
+}
+
+#FollowUpActionMessage {
+    background-color: @CARD;
+    border: 1px solid @BLUE;
+    border-left: 4px solid @BLUE;
+    border-radius: 10px;
+    margin: 4px 80px 8px 48px;
+}
+#FollowUpActionHeader {
+    color: @BLUE;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+}
+#FollowUpActionStatus {
+    color: @MUTED;
+    font-size: 12px;
+    background: transparent;
+}
+
+/* Input Area */
+#InputArea {
+    background-color: @TOOLBAR;
+    border-top: 1px solid @BORDER;
+}
+#ChatInput {
+    background-color: @INPUT;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+}
+#ChatInput:focus { border-color: @BLUE; }
+#InputToolButton {
+    background: transparent;
+    color: @MUTED;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+}
+#InputToolButton:hover { background: @HOVER; color: @TEXT; }
+#SendButton {
+    background-color: @BLUE;
+    color: white;
+    border: none;
+    border-radius: 17px;
+    font-size: 14px;
+    font-weight: 700;
+}
+#SendButton:hover { background-color: @BLUE_HOVER; }
+#SendButton:pressed { background-color: @SELECTED; }
+#SendButton:disabled { background-color: @BORDER; color: @WEAK; }
+
+/* ================================================================
+   RIGHT PANEL — Results
+   ================================================================ */
+#ResultPanel {
+    background-color: @BG;
+    border-left: 1px solid @BORDER;
+}
+#ResultTabBar {
+    background-color: @TOOLBAR;
+    border-bottom: 1px solid @BORDER;
+}
+#ResultTab {
+    background: transparent;
+    color: @WEAK;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+}
+#ResultTab:checked { color: @TEXT; border-bottom: 2px solid @BLUE; border-radius: 0; }
+#ResultTab:hover:!checked { color: @MUTED; }
+#CollapseButton {
+    background: transparent;
+    color: @WEAK;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+}
+#CollapseButton:hover { background: @HOVER; color: @TEXT; }
+
+#ArtifactScroll { background: transparent; border: none; }
+#ResultArtifactCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 8px;
+}
+#ResultArtifactCard:hover {
+    border-color: @BLUE;
+    background-color: @CARD_HOVER;
+}
+#ArtifactCardName {
+    color: @TEXT;
+    font-size: 13px;
+    font-weight: 500;
+    background: transparent;
+}
+
+#FileTree {
+    background-color: @INPUT;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    font-size: 12px;
+}
+#FileTree::item { padding: 3px 4px; }
+#FileTree::item:selected { background-color: @HOVER; }
+#FileTree::item:hover { background-color: @CARD_HOVER; }
+QHeaderView::section {
+    background-color: @CARD;
+    color: @MUTED;
+    border: none;
+    border-bottom: 1px solid @BORDER;
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+#PreviewTitle {
+    color: @TEXT;
+    font-size: 14px;
+    font-weight: 600;
+    background: transparent;
+}
+#PreviewText {
+    background-color: @INPUT;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 10px;
+    font-family: "Cascadia Mono", "Consolas", "Courier New", monospace;
+    font-size: 12px;
+}
+
+#ChangeItem {
+    color: @MUTED;
+    font-size: 12px;
+    background: transparent;
+    padding: 4px 0;
+}
+
+/* ================================================================
+   SETTINGS DIALOG
+   ================================================================ */
+#SettingsDialog {
+    background-color: @BG;
+}
+#SettingsFeedback {
+    color: @SUCCESS;
+    font-size: 12px;
+    font-weight: 600;
+    background-color: rgba(34, 197, 94, 0.08);
+    border-bottom: 1px solid @BORDER;
+}
+#SettingsPreviewCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 8px;
+    margin-top: 4px;
+}
+#SettingsRowTitle {
+    font-size: 14px;
+    font-weight: bold;
+    color: @TEXT;
+    background: transparent;
+}
+#SettingsRowDesc {
+    font-size: 12px;
+    color: @MUTED;
+    background: transparent;
+}
+#SettingsListCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+}
+#SettingsCardTitle {
+    font-size: 13px;
+    font-weight: bold;
+    color: @TEXT;
+    background: transparent;
+}
+#SettingsCardMuted {
+    font-size: 12px;
+    color: @MUTED;
+    background: transparent;
+}
+#SettingsEmptyHint {
+    font-size: 12px;
+    color: @WEAK;
+    padding: 12px;
+    background: transparent;
+}
+#SettingsDangerBtn {
+    color: @DANGER;
+    background: transparent;
+    border: none;
+    font-size: 11px;
+}
+#SettingsBadge {
+    font-size: 11px;
+    color: @BLUE;
+    background-color: @BLUE_MUTED;
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+#SettingsStatCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 8px;
+}
+#SettingsStatValue {
+    font-size: 24px;
+    font-weight: bold;
+    color: @BLUE;
+    background: transparent;
+}
+#SettingsUsernameInput {
+    background-color: @INPUT;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 14px;
+    selection-background-color: @BLUE_MUTED;
+}
+#SettingsUsernameInput:focus {
+    border-color: @BLUE;
+}
+#SettingsAccountVersion {
+    font-size: 12px;
+    color: @MUTED;
+    background: transparent;
+}
+#SettingsPreviewText {
+    color: @TEXT;
+    background: transparent;
+}
+#DialogTitleBar {
+    background-color: @TOOLBAR;
+    border-bottom: 1px solid @BORDER;
+}
+#DialogTitleLabel {
+    color: @TEXT;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+}
+#DialogBody {
+    background-color: @BG;
+}
+#SettingsNav {
+    background-color: @SIDEBAR;
+    color: @TEXT;
+    border: none;
+    border-right: 1px solid @BORDER;
+    font-size: 13px;
+    padding: 8px 0;
+}
+#SettingsNav::item {
+    padding: 10px 18px;
+    border: none;
+}
+#SettingsNav::item:selected {
+    background-color: @HOVER;
+    border-left: 3px solid @BLUE;
+    color: @TEXT;
+}
+#SettingsNav::item:hover:!selected { background-color: @CARD_HOVER; }
+#SettingsSection {
+    color: @TEXT;
+    font-size: 16px;
+    font-weight: 700;
+    padding-bottom: 6px;
+    border-bottom: 1px solid @BORDER;
+    background: transparent;
+}
+#LogViewer {
+    background-color: @INPUT;
+    color: @MUTED;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 8px;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 11px;
+}
+
+/* ================================================================
+   SKILL DIALOG / TABS
+   ================================================================ */
+#SkillHeader {
+    background-color: @TOOLBAR;
+    border-bottom: 1px solid @BORDER;
+}
+#SkillDownloadBar {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 10px;
+}
+#SkillListPanel, #SkillEditorPanel {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 8px;
+}
+#SkillList {
+    background-color: @BG;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+}
+#SkillFileEditor {
+    background-color: @BG;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 8px;
+}
+#SkillTabs {
+    background-color: @BG;
+}
+#SkillTabs::pane {
+    border: none;
+    background-color: @BG;
+}
+#SkillTabs > QTabBar::tab {
+    background: transparent;
+    color: @WEAK;
+    border: none;
+    padding: 8px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+}
+#SkillTabs > QTabBar::tab:selected {
+    color: @TEXT;
+    border-bottom: 2px solid @BLUE;
+}
+#SkillTabs > QTabBar::tab:hover:!selected { color: @MUTED; }
+
+/* ================================================================
+   SHARED COMPONENTS
+   ================================================================ */
+
+/* Buttons with variants */
+QPushButton[variant="primary"] {
+    background-color: @BLUE;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-weight: 600;
+    min-height: 34px;
+}
+QPushButton[variant="primary"]:hover { background-color: @BLUE_HOVER; }
+QPushButton[variant="primary"]:pressed { background-color: @SELECTED; }
+QPushButton[variant="primary"]:disabled { background-color: @BORDER; color: @WEAK; }
+
+QPushButton[variant="secondary"] {
+    background-color: @CARD;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 8px;
+    padding: 8px 18px;
+    min-height: 34px;
+}
+QPushButton[variant="secondary"]:hover { background-color: @CARD_HOVER; border-color: @BORDER_LIGHT; }
+
+QPushButton[variant="ghost"] {
+    background: transparent;
+    color: @MUTED;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+}
+QPushButton[variant="ghost"]:hover { background: @HOVER; color: @TEXT; }
+
+QPushButton[variant="danger"] {
+    background-color: transparent;
+    color: @DANGER;
+    border: 1px solid @DANGER;
+    border-radius: 8px;
+    padding: 8px 18px;
+    min-height: 34px;
+}
+QPushButton[variant="danger"]:hover { background-color: @DANGER; color: white; }
+
+QPushButton[variant="pill"] {
+    background-color: @CARD;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 12px;
+}
+QPushButton[variant="pill"]:hover { border-color: @BLUE; color: @BLUE; }
+
+/* Cards */
+#Card {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 10px;
+}
+#ActionCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 10px;
+    padding: 2px;
+}
+#ActionCard:hover { border-color: @BLUE; background-color: @CARD_HOVER; }
+#CardTitle {
+    color: @TEXT;
+    font-size: 14px;
+    font-weight: 600;
+    background: transparent;
+}
+#MutedLabel {
+    color: @WEAK;
+    font-size: 12px;
+    background: transparent;
+}
+#EmptyState {
+    background: transparent;
+}
+#EmptyIcon {
+    color: @WEAK;
+    font-size: 36px;
+    background: transparent;
+}
+#EmptyTitle {
+    color: @TEXT;
+    font-size: 16px;
+    font-weight: 600;
+    background: transparent;
+}
+
+/* Tables */
+#ModernTable {
+    background-color: @INPUT;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    gridline-color: @BORDER;
+    font-size: 12px;
+}
+#ModernTable::item { padding: 5px 8px; }
+#ModernTable::item:selected { background-color: @HOVER; }
+#ModernTable::item:hover { background-color: @CARD_HOVER; }
+QTableWidget { alternate-background-color: @CARD; }
+
+/* Inputs */
+QLineEdit, QTextEdit, QPlainTextEdit {
+    background-color: @INPUT;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    selection-background-color: @BLUE_MUTED;
+}
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus { border-color: @BLUE; }
+
+QComboBox {
+    background-color: @CARD;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 5px 10px;
+    min-height: 28px;
+    font-size: 12px;
+}
+QComboBox::drop-down { border: none; width: 20px; }
+QComboBox QAbstractItemView {
+    background-color: @CARD;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    selection-background-color: @HOVER;
+}
+
+QCheckBox { color: @TEXT; background: transparent; spacing: 6px; }
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 1px solid @BORDER;
+    border-radius: 4px;
+    background-color: @INPUT;
+}
+QCheckBox::indicator:checked { background-color: @BLUE; border-color: @BLUE; }
+
+QCheckBox#ToggleSwitch {
+    spacing: 0px;
+    background: transparent;
+}
+QCheckBox#ToggleSwitch::indicator {
+    width: 44px;
+    height: 24px;
+    border: none;
+    border-radius: 12px;
+    background: #3a3f4b;
+}
+QCheckBox#ToggleSwitch::indicator:checked {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 @BLUE, stop:1 @INDIGO);
+}
+QCheckBox#ToggleSwitch::indicator:unchecked {
+    background: #3a3f4b;
+}
+QCheckBox#ToggleSwitch::indicator:hover {
+    background: #4a5060;
+}
+QCheckBox#ToggleSwitch::indicator:checked:hover {
+    background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 @BLUE_HOVER, stop:1 @INDIGO);
+}
+
+QSpinBox {
+    background-color: @INPUT;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 4px 8px;
+}
+
+/* Context Menu */
+QMenu {
+    background-color: @CARD;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 8px;
+    padding: 4px;
+}
+QMenu::item {
+    padding: 6px 24px;
+    border-radius: 4px;
+}
+QMenu::item:selected { background-color: @HOVER; }
+
+/* Dialog */
+QDialog {
+    background-color: @BG;
+}
+
+/* ================================================================
+   TOOL CALL MESSAGE
+   ================================================================ */
+#ToolCallMessage {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-left: 3px solid @WARNING;
+    border-radius: 8px;
+    margin: 4px 120px 4px 16px;
+}
+#ToolCallIcon {
+    font-size: 14px;
+    background: transparent;
+}
+#ToolCallName {
+    color: @WARNING;
+    font-size: 12px;
+    font-weight: 600;
+    background: transparent;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+}
+#ToolCallToggle {
+    background: transparent;
+    color: @WEAK;
+    border: none;
+    border-radius: 4px;
+    font-size: 10px;
+}
+#ToolCallToggle:hover { background: @HOVER; color: @TEXT; }
+#ToolCallArgs {
+    color: @MUTED;
+    font-size: 12px;
+    background: transparent;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    padding: 2px 0 2px 26px;
+}
+#ToolCallDetail {
+    background-color: @INPUT;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    margin: 2px 0;
+}
+#ToolCallResult {
+    color: @WEAK;
+    font-size: 11px;
+    background: transparent;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    padding: 4px;
+}
+
+#ToolCallsGroup {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-left: 3px solid @WARNING;
+    border-radius: 8px;
+    margin: 4px 120px 4px 16px;
+}
+#ToolCallsGroupHeader {
+    background: transparent;
+    border: none;
+    text-align: left;
+}
+#ToolCallsGroupHeader:hover {
+    background-color: @HOVER;
+}
+#ToolCallsGroupSummary {
+    color: @TEXT;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+}
+#ToolCallsGroupChevron {
+    color: @WEAK;
+    font-size: 11px;
+    background: transparent;
+}
+#ToolCallsGroupBody {
+    background: transparent;
+    border: none;
+}
+#ToolCallsGroup #ToolCallMessage {
+    margin: 2px 8px 2px 8px;
+    border-left-width: 2px;
+}
+
+/* Form Labels */
+QFormLayout QLabel {
+    color: @MUTED;
+    background: transparent;
+}
+
+/* ================================================================
+   AGENT MESSAGE ACTION BAR
+   ================================================================ */
+#MessageActionBar {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+#MessageActionButton {
+    background: transparent;
+    color: @WEAK;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    padding: 2px;
+}
+#MessageActionButton:hover { background: @HOVER; color: @TEXT; }
+#AgentMessageStatus {
+    color: @WEAK;
+    font-size: 11px;
+    background: transparent;
+}
+
+/* ================================================================
+   INPUT BOTTOM BAR BUTTONS
+   ================================================================ */
+#InputBarButton {
+    background: transparent;
+    color: @MUTED;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+}
+#InputBarButton:hover { background: @HOVER; color: @TEXT; }
+#InputBarButton:checked { border-color: @BLUE; color: @BLUE; }
+#InputBarCombo {
+    background: transparent;
+    color: @MUTED;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    min-height: 22px;
+}
+#InputBarCombo::drop-down { border: none; width: 16px; }
+#InputBarCombo QAbstractItemView {
+    background-color: @CARD;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    selection-background-color: @HOVER;
+}
+#InputIconButton {
+    background: transparent;
+    color: @MUTED;
+    border: 1px solid @BORDER;
+    border-radius: 17px;
+    font-size: 14px;
+}
+#InputIconButton:hover { background: @HOVER; color: @TEXT; border-color: @BLUE; }
+
+/* ================================================================
+   SIDEBAR WORKBUDDY-STYLE NAV
+   ================================================================ */
+#SidebarHeader {
+    background: transparent;
+    border-bottom: 1px solid @BORDER;
+}
+#SidebarNav {
+    background: transparent;
+    border-bottom: 1px solid @BORDER;
+}
+#SidebarNavItem {
+    background: transparent;
+    color: @MUTED;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 13px;
+    text-align: left;
+}
+#SidebarNavItem:hover { background: @HOVER; color: @TEXT; }
+#SidebarSectionTitle {
+    color: @WEAK;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: transparent;
+    letter-spacing: 1px;
+}
+#SidebarBottom {
+    background: transparent;
+    border-top: 1px solid @BORDER;
+}
+
+/* ================================================================
+   CONVERSATION TOOLBAR — TOP
+   ================================================================ */
+#ConvTitle {
+    color: @TEXT;
+    font-size: 14px;
+    font-weight: 600;
+    background: transparent;
+}
+#ToolbarIconBtn {
+    background: transparent;
+    color: @MUTED;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+}
+#ToolbarIconBtn:hover { background: @HOVER; color: @TEXT; }
+
+/* ================================================================
+   ADDITIONAL COMPONENTS (Phases 6-8)
+   ================================================================ */
+
+/* Sidebar Navigation Buttons */
+#SidebarNavButton {
+    background: transparent;
+    color: @MUTED;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+    padding: 6px 0;
+    font-size: 11px;
+}
+#SidebarNavButton:hover { background: @HOVER; color: @TEXT; border-color: @BLUE; }
+
+/* Expert Dialog */
+#ExpertCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 10px;
+    padding: 2px;
+}
+#ExpertCard:hover { border-color: @BLUE; background-color: @CARD_HOVER; }
+#ExpertIcon {
+    font-size: 28px;
+    background: transparent;
+}
+#ExpertName {
+    color: @TEXT;
+    font-size: 14px;
+    font-weight: 600;
+    background: transparent;
+}
+#ExpertDesc {
+    color: @WEAK;
+    font-size: 12px;
+    background: transparent;
+}
+#ExpertDomain {
+    color: @BLUE;
+    font-size: 11px;
+    background: transparent;
+}
+#SummonButton {
+    background-color: @BLUE;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 500;
+}
+#SummonButton:hover { background-color: @BLUE_HOVER; }
+
+/* Connector Dialog */
+#ConnectorCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 8px;
+}
+#ConnectorCard:hover { border-color: @BLUE; }
+#StatusDot {
+    font-size: 8px;
+    background: transparent;
+}
+#StatusDot[status="connected"] { color: @SUCCESS; }
+#StatusDot[status="disconnected"] { color: @DANGER; }
+
+/* Reference Popup */
+#ReferencePopup {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 8px;
+    padding: 4px;
+}
+#ReferencePopup::item {
+    padding: 6px 12px;
+    border-radius: 4px;
+}
+#ReferencePopup::item:selected { background-color: @HOVER; }
+
+/* Regenerate Button */
+#RegenerateButton {
+    background: transparent;
+    color: @WEAK;
+    border: none;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+}
+#RegenerateButton:hover { color: @BLUE; background: @HOVER; }
+
+/* File Tab Bar */
+#FileTabBar {
+    background-color: @TOOLBAR;
+    border-bottom: 1px solid @BORDER;
+}
+#FileTabButton {
+    background: transparent;
+    color: @WEAK;
+    border: none;
+    padding: 4px 12px;
+    font-size: 11px;
+    border-bottom: 2px solid transparent;
+}
+#FileTabButton:checked { color: @TEXT; border-bottom-color: @BLUE; }
+#FileTabButton:hover:!checked { color: @MUTED; }
+
+/* Diff/Changes Card */
+#ChangeCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 8px;
+    padding: 2px;
+}
+#ChangeStepName {
+    color: @TEXT;
+    font-size: 12px;
+    font-weight: 500;
+    background: transparent;
+}
+#ChangeTool {
+    color: @BLUE;
+    font-size: 11px;
+    background: transparent;
+}
+#ChangeDetail {
+    color: @WEAK;
+    font-size: 11px;
+    background: transparent;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+}
+
+/* Data Management */
+#StatCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 10px;
+    padding: 16px;
+}
+#StatValue {
+    color: @TEXT;
+    font-size: 28px;
+    font-weight: 700;
+    background: transparent;
+}
+#StatLabel {
+    color: @WEAK;
+    font-size: 12px;
+    background: transparent;
+}
+
+/* ================================================================
+   PAGE NAVIGATION SYSTEM
+   ================================================================ */
+#ContentStack {
+    background-color: @BG;
+}
+#PageContainer {
+    background-color: @BG;
+}
+#PageScroll {
+    background: transparent;
+    border: none;
+}
+#PageScroll > QWidget { background: transparent; }
+
+#PageTitle {
+    color: @TEXT;
+    font-size: 26px;
+    font-weight: 800;
+    background: transparent;
+}
+#PageSubtitle {
+    color: @MUTED;
+    font-size: 14px;
+    background: transparent;
+}
+#SectionTitle {
+    color: @TEXT;
+    font-size: 16px;
+    font-weight: 700;
+    background: transparent;
+}
+
+/* Page Tab Bar (Expert Center top tabs) */
+#PageTabBar {
+    background-color: @TOOLBAR;
+    border-bottom: 1px solid @BORDER;
+}
+#PageTabButton {
+    background: transparent;
+    color: @MUTED;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+}
+#PageTabButton:checked {
+    color: @TEXT;
+    border-bottom-color: @BLUE;
+}
+#PageTabButton:hover:!checked { color: @TEXT; }
+
+/* Sidebar Nav Items (WorkBuddy style) */
+#SidebarNavItem {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    border-left: 3px solid transparent;
+}
+#SidebarNavItem[selected="true"] {
+    background-color: @HOVER;
+    border-left-color: @BLUE;
+}
+#SidebarNavItem:hover { background-color: @HOVER; }
+#NavItemLabel {
+    color: @TEXT;
+    font-size: 13px;
+    background: transparent;
+}
+#NavSubLink {
+    background: transparent;
+    color: @WEAK;
+    border: none;
+    font-size: 11px;
+    padding: 2px 4px;
+}
+#NavSubLink:hover { color: @BLUE; }
+
+/* Collapsible Section */
+#CollapsibleSection {
+    background: transparent;
+    border: none;
+}
+
+/* Hero Cards (Expert scenes) */
+#HeroCard {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1e3a5f, stop:1 #0f1b2d);
+    border-radius: 10px;
+    border: 1px solid @BORDER;
+}
+#HeroCard:hover { border-color: @BLUE; }
+
+/* Project Card */
+#ProjectCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 10px;
+}
+#ProjectCard:hover { border-color: @BLUE; background-color: @CARD_HOVER; }
+#ProjectCardName {
+    color: @TEXT;
+    font-size: 14px;
+    font-weight: 600;
+    background: transparent;
+}
+
+/* Tag Button (expert tags) */
+#TagButton {
+    background-color: @CARD;
+    color: @MUTED;
+    border: 1px solid @BORDER;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 10px;
+}
+#TagButton:hover { border-color: @BLUE; color: @BLUE; }
+
+/* Welcome Category Tabs */
+#WelcomeCatButton {
+    background-color: @CARD;
+    color: @MUTED;
+    border: 1px solid @BORDER;
+    border-radius: 20px;
+    padding: 8px 20px;
+    font-size: 13px;
+    font-weight: 500;
+}
+#WelcomeCatButton:checked {
+    background-color: @BLUE;
+    color: white;
+    border-color: @BLUE;
+}
+#WelcomeCatButton:hover:!checked { border-color: @BLUE; color: @TEXT; }
+
+#WelcomeSubLink {
+    background: transparent;
+    color: @WEAK;
+    border: none;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+#WelcomeSubLink:hover { color: @BLUE; }
+
+/* ================================================================
+   USER PROFILE POPUP
+   ================================================================ */
+#UserProfilePopup {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 12px;
+}
+#ProfileMenuItem {
+    background: transparent;
+    color: @MUTED;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 13px;
+    text-align: left;
+}
+#ProfileMenuItem:hover { background: @HOVER; color: @TEXT; }
+#ThemeToggle {
+    background-color: @INPUT;
+    color: @WEAK;
+    border: 1px solid @BORDER;
+    border-radius: 4px;
+    font-size: 11px;
+}
+#ThemeToggle:checked {
+    background-color: @BLUE;
+    color: white;
+    border-color: @BLUE;
+}
+
+/* --- Compact mode (set via widget property compact=true) --- */
+#TaskSidebar[compact="true"] #NewTaskButton {
+    min-height: 30px;
+    padding: 4px 0;
+    font-size: 13px;
+}
+#TaskSidebar[compact="true"] #TaskCardTitle { font-size: 12px; }
+#TaskSidebar[compact="true"] #SidebarNavItem { min-height: 30px; }
+#ConversationPanel[compact="true"] #ChatInputArea {
+    padding: 6px;
+}
+#ResultPanel[compact="true"] #ResultTabBar { min-height: 32px; }
+#ResultPanel[compact="true"] #ResultArtifactCard {
+    padding: 4px;
+}
