@@ -1,83 +1,177 @@
 {
-  "version": 1,
+  "version": 2,
   "updated_at": "2026-06-28",
-  "skills": [
+  "hot_skills": [
     {
       "name": "github_helper",
       "display": "GitHub 助手",
-      "desc": "通过 MCP GitHub 查 Issue/PR、读仓库文件（需配置 GitHub MCP Token）",
+      "desc": "查 Issue/PR、读仓库、协作流程（MCP GitHub）",
       "category": "开发",
       "icon": "🐙",
       "skill_type": "prompt",
+      "hot_rank": 1,
       "featured": true,
-      "recommended_mcp": [
-        "github"
-      ],
-      "skill_md": "# GitHub 助手\n\n当用户询问 GitHub 仓库、Issue、PR、文件内容时使用本 Skill。\n\n## 步骤\n\n1. 确认 owner/repo 与分支\n2. 优先调用 `mcp__github__*` 系列工具\n3. 汇总结果，标注来源链接\n\n## 注意\n\n- 私有仓库需配置 PAT\n- 无 MCP 时提示用户到 专家 → MCP 启用 GitHub\n"
+      "recommended_mcp": ["github"],
+      "skill_md": "# GitHub 助手\n\n用户询问 GitHub 仓库、Issue、PR 时使用。\n\n1. 确认 owner/repo\n2. 调用 mcp__github__* 工具\n3. 汇总并附链接\n"
     },
     {
       "name": "mcp_setup_guide",
       "display": "MCP 配置向导",
-      "desc": "远程更新：逐步引导启用 Filesystem / GitHub / Fetch MCP",
+      "desc": "排查 Filesystem / GitHub / Fetch 启用问题",
       "category": "远程",
       "icon": "🔌",
       "skill_type": "prompt",
+      "hot_rank": 2,
       "featured": true,
-      "skill_md": "# MCP 配置向导\n\n帮助用户在本机启用 MCP。\n\n## 检查清单\n\n1. Node.js 是否在 PATH（Windows 常见路径 `C:\\\\Program Files\\\\nodejs`）\n2. 设置 → MCP → 启用目标 Server → Test & reload\n3. Craft 模式下发送测试指令验证工具列表\n\n## 常见问题\n\n- `npx` 找不到：重启 Buddy 或补 PATH\n- GitHub 401：填写 Personal Access Token\n"
+      "skill_md": "# MCP 配置向导\n\n检查 Node.js、npx PATH、Token、Test & reload。\n"
     },
+    {
+      "name": "deep_research_pro",
+      "display": "深度研究 Pro",
+      "desc": "多轮检索 + 交叉验证 + 结构化报告",
+      "category": "研究",
+      "icon": "🔬",
+      "skill_type": "prompt",
+      "hot_rank": 3,
+      "hot": true,
+      "recommended_mcp": ["brave-search", "fetch"],
+      "skill_md": "# 深度研究 Pro\n\n拆解子问题、搜索、Fetch 读原文、输出带引用报告。\n"
+    },
+    {
+      "name": "xiaohongshu_writer",
+      "display": "小红书爆款文案",
+      "desc": "标题 + 正文 + 标签，适配种草/测评",
+      "category": "创意",
+      "icon": "📕",
+      "skill_type": "prompt",
+      "hot_rank": 4,
+      "hot": true,
+      "skill_md": "# 小红书文案\n\n吸睛标题、分段正文、10 个话题标签。\n"
+    },
+    {
+      "name": "weekly_report_gen",
+      "display": "周报/月报生成",
+      "desc": "结构化汇报：完成/进行中/风险/计划",
+      "category": "办公",
+      "icon": "📊",
+      "skill_type": "prompt",
+      "hot_rank": 5,
+      "hot": true,
+      "skill_md": "# 周报生成\n\n本周完成、进行中、风险、下周计划。\n"
+    },
+    {
+      "name": "sql_analyst",
+      "display": "SQL 数据分析",
+      "desc": "自然语言转 SQL 并解读结果",
+      "category": "数据",
+      "icon": "🗃",
+      "skill_type": "prompt",
+      "hot_rank": 6,
+      "hot": true,
+      "skill_md": "# SQL 分析\n\n生成只读 SELECT，解读查询结果。\n"
+    },
+    {
+      "name": "api_doc_helper",
+      "display": "API 对接助手",
+      "desc": "读 API 文档，生成调用示例",
+      "category": "开发",
+      "icon": "🔗",
+      "skill_type": "prompt",
+      "hot_rank": 7,
+      "hot": true,
+      "skill_md": "# API 对接\n\ncurl/Python 示例、鉴权、错误码说明。\n"
+    },
+    {
+      "name": "contract_review_lite",
+      "display": "合同要点审查",
+      "desc": "提取付款、违约、争议等风险点",
+      "category": "办公",
+      "icon": "📜",
+      "skill_type": "prompt",
+      "hot_rank": 8,
+      "hot": true,
+      "skill_md": "# 合同审查 Lite\n\n列出关键条款与需人工复核点。\n"
+    },
+    {
+      "name": "resume_polish",
+      "display": "简历优化",
+      "desc": "STAR 法则改写项目经历",
+      "category": "办公",
+      "icon": "📝",
+      "skill_type": "prompt",
+      "hot_rank": 9,
+      "hot": true,
+      "skill_md": "# 简历优化\n\n按 JD 调整关键词，量化成果。\n"
+    },
+    {
+      "name": "highway_bid_outline",
+      "display": "公路机电投标大纲",
+      "desc": "按评分项生成技术方案目录",
+      "category": "工程",
+      "icon": "🛣",
+      "skill_type": "prompt",
+      "hot_rank": 10,
+      "hot": true,
+      "skill_md": "# 公路机电投标大纲\n\n总体方案、各系统响应、人员设备、进度质保。\n"
+    }
+  ],
+  "skills": [
     {
       "name": "web_access",
       "display": "Web Access",
-      "desc": "【远程更新】网页抓取与摘要，需启用 Fetch / Brave MCP",
+      "desc": "【远程 v2】网页抓取与摘要",
       "category": "研究",
       "icon": "🌐",
       "skill_type": "prompt",
-      "recommended_mcp": [
-        "fetch",
-        "brave-search"
-      ],
-      "skill_md": "# Web Access（远程目录版）\n\n用户需要读网页、搜新闻、抓公开数据时使用。\n\n1. 有 Brave Search MCP → 先搜索再 Fetch\n2. 仅有 Fetch → 直接抓取 URL\n3. 禁止编造未抓取到的内容\n"
+      "recommended_mcp": ["fetch", "brave-search"],
+      "skill_md": "# Web Access v2\n\n先搜索再抓取，禁止编造。\n"
     }
   ],
-  "hot_skills": [],
   "experts": [
     {
       "name": "MCP 配置顾问",
       "provider": "Buddy 远程",
       "category": "技术工程",
-      "desc": "帮助配置 MCP Server、排查 npx/Token/连通性问题",
-      "tags": [
-        "MCP",
-        "配置",
-        "远程"
-      ],
-      "prompt": "你是 MCP 配置顾问。用户在使用 Buddy 桌面 Agent。帮助其启用 Filesystem、GitHub、Fetch、Brave 等 MCP；解释 Test & reload、PATH、Node.js、PAT Token。步骤清晰，可给出 PowerShell 检查命令。"
+      "desc": "配置 MCP、排查 npx/Token",
+      "tags": ["MCP", "远程", "热门"],
+      "hot": true,
+      "prompt": "你是 MCP 配置顾问。步骤清晰。"
     },
     {
       "name": "GitHub 协作顾问",
       "provider": "Buddy 远程",
       "category": "技术工程",
-      "desc": "Issue/PR 流程、仓库结构、Actions 与协作规范",
-      "tags": [
-        "GitHub",
-        "协作",
-        "远程"
-      ],
-      "prompt": "你是 GitHub 协作顾问。熟悉 Issue、PR、Review、Branch 策略。结合 MCP GitHub 工具给出可执行步骤，回答简洁专业。"
+      "desc": "Issue/PR/Review 流程",
+      "tags": ["GitHub", "远程", "热门"],
+      "hot": true,
+      "prompt": "你是 GitHub 协作顾问。"
     },
     {
       "name": "投标方案润色",
       "provider": "DNA 远程",
       "category": "办公效率",
-      "desc": "远程更新：针对公路机电/信息化项目投标技术方案润色",
-      "tags": [
-        "投标",
-        "方案",
-        "远程"
-      ],
-      "prompt": "你是公路机电与信息化项目投标技术方案专家。擅长把零散要点整理成规范、响应招标文件的技术叙述，语言正式、条理清晰，突出合规性与可实施性。"
+      "desc": "公路机电投标技术方案润色",
+      "tags": ["投标", "远程", "热门"],
+      "hot": true,
+      "prompt": "你是投标技术方案专家。"
+    },
+    {
+      "name": "小红书运营专家",
+      "provider": "Buddy 远程",
+      "category": "内容创作",
+      "desc": "爆款选题与脚本",
+      "tags": ["小红书", "远程", "热门"],
+      "hot": true,
+      "prompt": "你是小红书运营专家。"
+    },
+    {
+      "name": "数据分析教练",
+      "provider": "Buddy 远程",
+      "category": "数据智能",
+      "desc": "Excel/SQL/Python 分析路径",
+      "tags": ["数据", "远程", "热门"],
+      "hot": true,
+      "prompt": "你是数据分析教练。"
     }
-  ],
-  "fetched_at": 1782637663.5916975,
-  "source_url": "https://raw.githubusercontent.com/zezeqq/-agent/main/config/catalog.json"
+  ]
 }
