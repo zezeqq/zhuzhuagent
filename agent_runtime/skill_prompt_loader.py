@@ -65,7 +65,7 @@ def ensure_skill_md(install_path: Path, manifest: dict) -> Path:
     return md_path
 
 
-def load_enabled_skill_sections() -> list[dict]:
+def load_enabled_skill_sections(*, package_filter: str | None = None) -> list[dict]:
     """Return enabled skills with prompt text from SKILL.md or manifest fallback."""
     from core.settings_runtime import plugins_disabled
 
@@ -76,8 +76,12 @@ def load_enabled_skill_sections() -> list[dict]:
         "SELECT package_name, display_name, install_path, manifest_json "
         "FROM installed_skill_packages WHERE enabled = 1 ORDER BY id"
     )
+    filt = (package_filter or "").strip().lower().replace(" ", "_")
     sections: list[dict] = []
     for row in rows:
+        package_name = row.get("package_name") or ""
+        if filt and package_name.lower().replace(" ", "_") != filt:
+            continue
         install_path = Path(row.get("install_path") or "")
         if not install_path.is_dir():
             continue
@@ -90,10 +94,10 @@ def load_enabled_skill_sections() -> list[dict]:
         display = (
             row.get("display_name")
             or manifest.get("display_name")
-            or row.get("package_name")
+            or package_name
             or install_path.name
         )
-        package_name = row.get("package_name") or manifest.get("name") or install_path.name
+        package_name = package_name or manifest.get("name") or install_path.name
 
         inline = (manifest.get("skill_prompt") or "").strip()
         if inline:
@@ -106,6 +110,15 @@ def load_enabled_skill_sections() -> list[dict]:
 
         if not content:
             continue
+
+        mcp_ids = manifest.get("recommended_mcp") or []
+        if mcp_ids:
+            content += (
+                "\n\n## 推荐 MCP\n\n"
+                + "、".join(str(x) for x in mcp_ids)
+                + "（对应 `mcp__*` 工具，需在 MCP 设置中启用）。\n"
+            )
+
         if len(content) > _MAX_SKILL_CHARS:
             content = content[:_MAX_SKILL_CHARS] + "\n\n…(Skill 说明过长，已截断)"
 
@@ -113,23 +126,39 @@ def load_enabled_skill_sections() -> list[dict]:
             "package_name": package_name,
             "display_name": display,
             "content": content,
+            "manifest": manifest,
         })
     return sections
 
 
-def build_skills_system_suffix() -> str:
-    sections = load_enabled_skill_sections()
+def preview_skill_prompt(package_name: str) -> str:
+    """Preview injected prompt block for one installed skill."""
+    secs = load_enabled_skill_sections(package_filter=package_name)
+    if not secs:
+        return f"未找到已启用的 Skill：{package_name}"
+    sec = secs[0]
+    return (
+        f"### Skill: {sec['display_name']} (`{sec['package_name']}`)\n\n"
+        f"{sec['content']}"
+    )
+
+
+def build_skills_system_suffix(*, package_filter: str | None = None) -> str:
+    sections = load_enabled_skill_sections(package_filter=package_filter)
     if not sections:
         return ""
 
-    lines = [
-        "",
-        "## 已启用的 Skill（SKILL.md）",
-        "",
-        "以下 Skill 已通过 Markdown 说明注入。遇到匹配任务时**优先遵循**对应步骤、格式与约束；"
-        "使用 Agent **内置工具**执行，不要等待不存在的专用工具。",
-        "",
-    ]
+    if package_filter:
+        header = f"## 当前 Skill（{sections[0]['display_name']}）"
+        hint = "以下为本对话选中的 Skill，请优先遵循。"
+    else:
+        header = "## 已启用的 Skill（SKILL.md）"
+        hint = (
+            "以下 Skill 已通过 Markdown 说明注入。遇到匹配任务时**优先遵循**对应步骤、格式与约束；"
+            "使用 Agent **内置工具**与已配置的 **MCP 工具**执行。"
+        )
+
+    lines = ["", header, "", hint, ""]
     used = len("\n".join(lines))
     for sec in sections:
         block = (

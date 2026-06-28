@@ -1,0 +1,158 @@
+{
+  "presets": [
+    {
+      "id": "filesystem",
+      "name": "Filesystem",
+      "category": "Local",
+      "description": "Read/list/write files under allowed folders (official MCP server).",
+      "requires": ["Node.js (npx)"],
+      "default_enabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "{{EXPORTS_DIR}}"],
+      "env": {},
+      "fields": [
+        {
+          "kind": "path",
+          "label": "Allowed directory",
+          "target": "arg",
+          "arg_index": -1,
+          "default": "{{EXPORTS_DIR}}",
+          "browse": "dir"
+        }
+      ]
+    },
+    {
+      "id": "fetch",
+      "name": "Web Fetch",
+      "category": "Network",
+      "description": "Fetch and convert web pages to markdown for the Agent.",
+      "requires": ["Python uv (uvx) or Node.js"],
+      "default_enabled": false,
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "env": {},
+      "fields": []
+    },
+    {
+      "id": "memory",
+      "name": "Memory",
+      "category": "Local",
+      "description": "Persistent knowledge graph memory across conversations.",
+      "requires": ["Node.js (npx)"],
+      "default_enabled": false,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {},
+      "fields": []
+    },
+    {
+      "id": "sequential-thinking",
+      "name": "Sequential Thinking",
+      "category": "Reasoning",
+      "description": "Structured step-by-step thinking tool for complex tasks.",
+      "requires": ["Node.js (npx)"],
+      "default_enabled": false,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "env": {},
+      "fields": []
+    },
+    {
+      "id": "sqlite",
+      "name": "SQLite",
+      "category": "Local",
+      "description": "Query the Buddy local SQLite database via MCP.",
+      "requires": ["Node.js (npx)"],
+      "default_enabled": false,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "{{SQLITE_PATH}}"],
+      "env": {},
+      "fields": [
+        {
+          "kind": "path",
+          "label": "Database file",
+          "target": "arg",
+          "arg_index": -1,
+          "default": "{{SQLITE_PATH}}",
+          "browse": "file"
+        }
+      ]
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "category": "Network",
+      "description": "Issues, PRs, repos — requires a GitHub Personal Access Token.",
+      "requires": ["Node.js", "GITHUB_PERSONAL_ACCESS_TOKEN"],
+      "default_enabled": false,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
+      },
+      "fields": [
+        {
+          "kind": "secret",
+          "label": "GitHub Token",
+          "target": "env",
+          "env_key": "GITHUB_PERSONAL_ACCESS_TOKEN",
+          "placeholder": "ghp_..."
+        }
+      ]
+    },
+    {
+      "id": "brave-search",
+      "name": "Brave Search",
+      "category": "Network",
+      "description": "Web search via Brave Search API.",
+      "requires": ["Node.js", "BRAVE_API_KEY"],
+      "default_enabled": false,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": ""
+      },
+      "fields": [
+        {
+          "kind": "secret",
+          "label": "Brave API Key",
+          "target": "env",
+          "env_key": "BRAVE_API_KEY"
+        }
+      ]
+    },
+    {
+      "id": "google-maps",
+      "name": "Google Maps",
+      "category": "Network",
+      "description": "Geocoding, places, directions — requires Google Maps API key.",
+      "requires": ["Node.js", "GOOGLE_MAPS_API_KEY"],
+      "default_enabled": false,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-google-maps"],
+      "env": {
+        "GOOGLE_MAPS_API_KEY": ""
+      },
+      "fields": [
+        {
+          "kind": "secret",
+          "label": "Google Maps API Key",
+          "target": "env",
+          "env_key": "GOOGLE_MAPS_API_KEY"
+        }
+      ]
+    },
+    {
+      "id": "puppeteer",
+      "name": "Puppeteer (Browser)",
+      "category": "Browser",
+      "description": "Headless browser automation — heavier, downloads Chromium on first run.",
+      "requires": ["Node.js (npx)"],
+      "default_enabled": false,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "env": {},
+      "fields": []
+    }
+  ]
+}

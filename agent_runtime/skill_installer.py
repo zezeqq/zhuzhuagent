@@ -11,7 +11,6 @@ from urllib.parse import urlparse
 
 from db.database import insert, query_one
 
-
 from utils.path_utils import installed_skills_dir, skill_downloads_dir
 
 SKILL_ROOT = installed_skills_dir()
@@ -61,12 +60,11 @@ def _find_manifest(root: Path) -> dict:
         "display_name": display,
         "version": "0.1.0",
         "description": "从网络安装的本地 Skill 包。",
-        "entry": str(py_files[0].relative_to(root)) if py_files else "",
+        "entry": str(py_files[0].relative_to(root)).replace("\\", "/") if py_files else "",
     }
 
 
 def _validate_tool_definitions(manifest: dict) -> None:
-    """Validate that any ``tools`` declared in a manifest have the required fields."""
     tools = manifest.get("tools")
     if not tools:
         return
@@ -85,6 +83,43 @@ def _validate_tool_definitions(manifest: dict) -> None:
             raise ValueError(
                 f"tools[{idx}] ('{td['name']}') 的 parameters 必须是 type=object 的 JSON Schema。"
             )
+
+
+def _manifest_from_catalog(skill: dict) -> dict:
+    package_name = skill["name"].strip().lower().replace(" ", "_")
+    manifest: dict = {
+        "name": package_name,
+        "display_name": skill.get("display") or package_name,
+        "version": "0.1.0",
+        "description": skill.get("desc", ""),
+        "skill_type": skill.get("skill_type", "prompt"),
+        "prompt_entry": "SKILL.md",
+    }
+    if skill.get("tools"):
+        manifest["entry"] = "skill.py"
+        manifest["tools"] = skill["tools"]
+    else:
+        manifest["entry"] = "skill.py"
+    if skill.get("recommended_mcp"):
+        manifest["recommended_mcp"] = list(skill["recommended_mcp"])
+    if skill.get("recommended_tools"):
+        manifest["recommended_tools"] = list(skill["recommended_tools"])
+    return manifest
+
+
+def install_from_catalog(skill: dict) -> dict:
+    """Install a skill from unified catalog entry."""
+    from core.skill_catalog import is_planned_skill
+
+    if is_planned_skill(skill):
+        raise ValueError(f"「{skill.get('display', skill.get('name'))}」尚在规划中，暂不可安装。")
+    return install_market_skill(
+        skill["name"],
+        skill.get("display") or skill["name"],
+        skill.get("desc", ""),
+        skill_md=skill.get("skill_md", ""),
+        catalog_entry=skill,
+    )
 
 
 def install_skill_from_url(url: str) -> dict:
@@ -133,29 +168,45 @@ def install_market_skill(
     display_name: str,
     description: str = "",
     skill_md: str = "",
+    *,
+    catalog_entry: dict | None = None,
 ) -> dict:
+    catalog_entry = catalog_entry or {}
     package_name = skill_name.strip().lower().replace(" ", "_")
     if not package_name:
         raise ValueError("Skill 名称不能为空。")
     install_path = SKILL_ROOT / package_name
     install_path.mkdir(parents=True, exist_ok=True)
-    manifest = {
+
+    skill_type = catalog_entry.get("skill_type", "prompt")
+    tools = catalog_entry.get("tools") or []
+    manifest = _manifest_from_catalog({
         "name": package_name,
-        "display_name": display_name,
-        "version": "0.1.0",
-        "description": description,
-        "entry": "skill.py",
-        "prompt_entry": "SKILL.md",
-    }
-    (install_path / "skill.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        "display": display_name,
+        "desc": description,
+        "skill_type": skill_type,
+        "tools": tools,
+        "recommended_mcp": catalog_entry.get("recommended_mcp"),
+        "recommended_tools": catalog_entry.get("recommended_tools"),
+    })
+
     from agent_runtime.skill_prompt_loader import default_skill_md
+    from agent_runtime.skill_tool_scaffold import default_tool_skill_py
 
     md_content = skill_md.strip() or default_skill_md(display_name, description)
     (install_path / "SKILL.md").write_text(md_content, encoding="utf-8")
-    (install_path / "skill.py").write_text(
-        'def run(**kwargs):\n    return {"message": "Skill 已安装，请在后续版本中补充具体执行逻辑。", "input": kwargs}\n',
-        encoding="utf-8",
-    )
+    (install_path / "skill.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    if tools:
+        py_content = default_tool_skill_py(package_name, tools)
+        (install_path / "skill.py").write_text(py_content, encoding="utf-8")
+    else:
+        (install_path / "skill.py").write_text(
+            'def handle(args: dict) -> str:\n'
+            '    return "本 Skill 为说明文档型（prompt），请通过 SKILL.md 指导 Agent 使用内置/MCP 工具。"\n',
+            encoding="utf-8",
+        )
+
     _register_package(package_name, manifest, "market", "", install_path)
     return {"package_name": package_name, "install_path": str(install_path), "manifest": manifest}
 

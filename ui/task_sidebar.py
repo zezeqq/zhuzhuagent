@@ -293,7 +293,7 @@ class TaskSidebar(QFrame):
         nav_defs = [
             ("💬", "助理", "assistant", None),
             ("📁", "项目", "project", None),
-            ("👤", "专家", "expert", [("技能", "skills"), ("快捷启动", "connectors")]),
+            ("👤", "专家", "expert", [("技能", "skills"), ("MCP", "mcp"), ("快捷启动", "connectors")]),
             ("🤖", "自动化", "automation", None),
             ("📚", "更多", "more", [("资料库", "resources"), ("灵感", "inspiration")]),
         ]

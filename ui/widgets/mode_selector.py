@@ -1,59 +1,62 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QPushButton
+from PySide6.QtWidgets import QComboBox
 
 
-MODES = [
-    ("ask", "问一问"),
-    ("craft", "做一做"),
-    ("plan", "想一想"),
+# Display labels are always English. Internal keys unchanged for DB / agent.py.
+MODE_OPTIONS: list[tuple[str, str, str]] = [
+    ("ask", "Ask", "Chat only — no tools"),
+    ("plan", "Plan", "Draft a plan first; confirm before running tools"),
+    ("craft", "Craft", "Agent mode — run tools and execute tasks directly"),
 ]
 
+_MODE_KEYS = {key for key, _, _ in MODE_OPTIONS}
 
-class ModeSelector(QFrame):
+
+class ModeSelector(QComboBox):
+    """Compact mode dropdown: Ask / Plan / Craft."""
+
     mode_changed = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setObjectName("ModeSelector")
+        self.setObjectName("ModeCombo")
+        self.setCursor(Qt.PointingHandCursor)
+        self.setMinimumWidth(108)
+        self.setMaximumWidth(140)
         self._current = "craft"
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(0)
-        self._buttons: dict[str, QPushButton] = {}
-        for key, label in MODES:
-            btn = QPushButton(label)
-            btn.setObjectName("ModeButton")
-            btn.setCursor(Qt.PointingHandCursor)
-            btn.setCheckable(True)
-            btn.setChecked(key == self._current)
-            btn.clicked.connect(lambda _, k=key: self._select(k))
-            self._buttons[key] = btn
-            layout.addWidget(btn)
+        self._building = True
+        for key, label, tip in MODE_OPTIONS:
+            self.addItem(label, key)
+            idx = self.count() - 1
+            self.setItemData(idx, tip, Qt.ToolTipRole)
+        self._building = False
+        self.set_mode("craft")
+        self.currentIndexChanged.connect(self._on_index_changed)
 
-    def _select(self, key: str) -> None:
-        if key == self._current:
+    def _on_index_changed(self, index: int) -> None:
+        if self._building or index < 0:
+            return
+        key = self.itemData(index)
+        if not key or key == self._current:
             return
         self._current = key
-        for k, btn in self._buttons.items():
-            btn.setChecked(k == key)
         self.mode_changed.emit(key)
 
     def retranslate_ui(self) -> None:
-        from ui.i18n import t
-
-        for key, label_key in (("ask", "mode_ask"), ("craft", "mode_craft"), ("plan", "mode_plan")):
-            btn = self._buttons.get(key)
-            if btn:
-                btn.setText(t(label_key))
+        """Mode labels stay English regardless of app locale."""
 
     def current_mode(self) -> str:
         return self._current
 
     def set_mode(self, key: str) -> None:
-        if key not in self._buttons:
-            return
+        if key not in _MODE_KEYS:
+            key = "craft"
         self._current = key
-        for k, btn in self._buttons.items():
-            btn.setChecked(k == key)
+        self._building = True
+        for i in range(self.count()):
+            if self.itemData(i) == key:
+                self.setCurrentIndex(i)
+                break
+        self._building = False

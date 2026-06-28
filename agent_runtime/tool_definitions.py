@@ -622,4 +622,21 @@ def get_active_tools() -> list[dict]:
                 },
             })
 
+    from agent_runtime.mcp_client import ensure_mcp_tools_loaded, get_mcp_tool_definitions, mcp_enabled
+    if mcp_enabled():
+        ensure_mcp_tools_loaded()
+        for tool in get_mcp_tool_definitions():
+            t_name = tool.get("function", {}).get("name", "")
+            if t_name and t_name not in disabled_set:
+                active.append(tool)
+
     return active
+
+
+def get_tool_risk_level(name: str) -> str:
+    if name in TOOL_RISK_LEVELS:
+        return TOOL_RISK_LEVELS[name]
+    if name.startswith("mcp__"):
+        from agent_runtime.mcp_client import get_mcp_tool_risk
+        return get_mcp_tool_risk(name)
+    return "medium"

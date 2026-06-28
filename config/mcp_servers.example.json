@@ -1,0 +1,12 @@
+{
+  "_comment": "See config/mcp_presets.json for the full catalog. UI: Settings → Tools → Configure MCP.",
+  "mcpServers": {
+    "filesystem": {
+      "_preset": "filesystem",
+      "enabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "{{EXPORTS_DIR}}"],
+      "env": {}
+    }
+  }
+}

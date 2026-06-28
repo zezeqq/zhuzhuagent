@@ -230,6 +230,7 @@ class ConversationPanel(QFrame):
         self._step_widget: StepProgressMessage | None = None
         self._pending_plan = None
         self._expert_prompt: str = ""
+        self._active_skill_package: str = ""
         self._current_agent_msg: AgentMessage | None = None
         self._tool_call_count: int = 0
         self._tool_group: ToolCallsGroup | None = None
@@ -322,6 +323,11 @@ class ConversationPanel(QFrame):
         bottom_bar = QHBoxLayout()
         bottom_bar.setSpacing(6)
 
+        mode_lbl = QLabel("Mode")
+        mode_lbl.setObjectName("MutedLabel")
+        mode_lbl.setStyleSheet("font-size:12px; padding-right:2px;")
+        bottom_bar.addWidget(mode_lbl)
+
         self._mode = ModeSelector()
         self._mode.mode_changed.connect(self._on_mode_changed)
         bottom_bar.addWidget(self._mode)
@@ -350,6 +356,14 @@ class ConversationPanel(QFrame):
         bottom_bar.addWidget(my_skill_btn)
         bottom_bar.addWidget(skill_btn)
 
+        mcp_btn = QPushButton(t("chat_mcp"))
+        mcp_btn.setObjectName("InputBarButton")
+        mcp_btn.setCursor(Qt.PointingHandCursor)
+        mcp_btn.setToolTip(t("chat_mcp_tip"))
+        mcp_btn.clicked.connect(self._open_mcp)
+        self._mcp_btn = mcp_btn
+        bottom_bar.addWidget(mcp_btn)
+
         self._expert_combo = QComboBox()
         self._expert_combo.setObjectName("InputBarCombo")
         self._expert_combo.setMinimumWidth(100)
@@ -357,6 +371,13 @@ class ConversationPanel(QFrame):
             self._expert_combo.addItem(f"👤 {display}", key)
         self._expert_combo.currentIndexChanged.connect(self._on_expert_changed)
         bottom_bar.addWidget(self._expert_combo)
+
+        self._skill_combo = QComboBox()
+        self._skill_combo.setObjectName("InputBarCombo")
+        self._skill_combo.setMinimumWidth(110)
+        self._skill_combo.setToolTip("选择本对话优先使用的 Skill（空=注入全部已启用 Skill）")
+        self._load_skill_combo()
+        bottom_bar.addWidget(self._skill_combo)
 
         self._perm_btn = QPushButton(t("chat_perm_default"))
         self._perm_btn.setObjectName("InputBarButton")
@@ -434,6 +455,9 @@ class ConversationPanel(QFrame):
         if hasattr(self, "_my_skills_btn"):
             self._my_skills_btn.setText(t("chat_my_skills"))
             self._my_skills_btn.setToolTip(t("chat_my_skills_tip"))
+        if hasattr(self, "_mcp_btn"):
+            self._mcp_btn.setText(t("chat_mcp"))
+            self._mcp_btn.setToolTip(t("chat_mcp_tip"))
         if self._perm_btn.isChecked():
             self._perm_btn.setText(t("chat_perm_full"))
         else:
@@ -484,10 +508,44 @@ class ConversationPanel(QFrame):
                 self._expert_prompt = prompt
                 break
 
+    def _load_skill_combo(self) -> None:
+        if not hasattr(self, "_skill_combo"):
+            return
+        prev = self._skill_combo.currentData()
+        self._skill_combo.blockSignals(True)
+        self._skill_combo.clear()
+        self._skill_combo.addItem("Skill: 全部", "")
+        try:
+            from db.database import query_all
+            for row in query_all(
+                "SELECT package_name, display_name FROM installed_skill_packages "
+                "WHERE enabled=1 ORDER BY display_name"
+            ):
+                pkg = row.get("package_name") or ""
+                label = row.get("display_name") or pkg
+                if pkg:
+                    self._skill_combo.addItem(f"Skill: {label}", pkg)
+        except Exception:
+            pass
+        idx = self._skill_combo.findData(prev)
+        self._skill_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        self._skill_combo.blockSignals(False)
+
+    def _active_skill_package(self) -> str:
+        if not hasattr(self, "_skill_combo"):
+            return ""
+        data = self._skill_combo.currentData()
+        return str(data) if data else ""
+
     def _open_skills(self, *, my_skills: bool = False) -> None:
         from ui.dialogs.skill_dialog import SkillDialog
         dlg = SkillDialog(self.window(), initial_tab=1 if my_skills else 0)
         dlg.exec()
+        self._load_skill_combo()
+
+    def _open_mcp(self) -> None:
+        from ui.dialogs.mcp_dialog import open_mcp_dialog
+        open_mcp_dialog(self.window())
 
     def load_conversation(self, conv_id: int, title: str = "") -> None:
         self._detach_worker_ui()
@@ -941,6 +999,7 @@ class ConversationPanel(QFrame):
             local_search_only=local_search_only,
             plan_execute=plan_execute,
             plan_context=plan_context,
+            active_skill_package=self._active_skill_package(),
         )
         self._worker = worker
         if conv_id:

@@ -31,7 +31,7 @@ class ToolRegistry:
         self.register("code.project.write_file", "写入项目文件", "在指定项目目录内写入代码/文本文件并自动备份", "high", write_project_file)
         self.register("software.launch", "启动本机软件", "启动已配置的本机软件，可传入打开路径", "medium", launch_software)
         self.register("skill.install.url", "从网络安装 Skill", "从 URL 或 GitHub 仓库下载并安装 Skill 包", "medium", install_skill_from_url)
-        self.register("skill.install.market", "安装市场 Skill", "从内置市场安装 Skill 占位包", "low", install_market_skill)
+        self.register("skill.install.market", "安装市场 Skill", "从 skill_catalog 安装 Skill 包", "low", install_market_skill)
 
     def register(self, name: str, display_name: str, description: str, risk_level: str, handler: Callable[..., Any]) -> None:
         self._tools[name] = ToolSpec(name, display_name, description, risk_level, handler)

@@ -7,6 +7,7 @@ pypdf>=4.2
 pyinstaller>=6.0
 python-pptx>=0.6.23
 pyautogui>=0.9.54
+mcp>=1.2.0
 
 # 本地 UI 定位（可选，装后 GUI 操作更快）
 uiautomation>=2.0.18

@@ -89,8 +89,19 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         if app:
             apply_app_settings(app, self)
-        if changed_key in ("", "disable_all_plugins", "disabled_tools"):
+        if changed_key in ("", "disable_all_plugins", "disabled_tools", "enable_mcp", "mcp_config"):
             reload_skill_handlers()
+            if changed_key in ("enable_mcp", "mcp_config", "disable_all_plugins", ""):
+                import threading
+                from agent_runtime.mcp_client import refresh_mcp_tools, shutdown_mcp, mcp_enabled
+                def _mcp():
+                    if mcp_enabled():
+                        refresh_mcp_tools()
+                    else:
+                        shutdown_mcp()
+                    from PySide6.QtCore import QTimer
+                    QTimer.singleShot(0, self._refresh_status)
+                threading.Thread(target=_mcp, daemon=True).start()
         self._conversation._load_models()
 
     def _build_menu_bar(self) -> TitleBarFrame:
@@ -172,6 +183,10 @@ class MainWindow(QMainWindow):
             self._project_page.refresh()
 
     def _on_sub_page(self, sub_key: str) -> None:
+        if sub_key == "mcp":
+            from ui.dialogs.mcp_dialog import open_mcp_dialog
+            open_mcp_dialog(self)
+            return
         mapping = {
             "skills": ("expert", "skills"),
             "connectors": ("expert", "connectors"),
@@ -272,6 +287,18 @@ class MainWindow(QMainWindow):
         project = current_project()
         model_text = model["model_name"] if model else t("status_no_model")
         project_text = project["project_name"] if project else t("status_no_project")
+        mcp_text = ""
+        try:
+            from agent_runtime.mcp_client import get_mcp_status_summary, mcp_enabled
+            if mcp_enabled():
+                s = get_mcp_status_summary()
+                n = int(s.get("tool_count") or 0)
+                if n > 0:
+                    mcp_text = f"    MCP：{n} 工具"
+                else:
+                    mcp_text = "    MCP：未连接（点 MCP → Test & reload）"
+        except Exception:
+            pass
         self._status.showMessage(
-            f"{t('status_model')}：{model_text}    {t('status_project')}：{project_text}    {APP_VERSION}"
+            f"{t('status_model')}：{model_text}    {t('status_project')}：{project_text}{mcp_text}    {APP_VERSION}"
         )

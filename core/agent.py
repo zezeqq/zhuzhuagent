@@ -5,7 +5,7 @@ from collections.abc import Callable
 from typing import Any, Generator
 
 from core.app_identity import APP_NAME
-from agent_runtime.tool_definitions import TOOLS, TOOL_RISK_LEVELS, get_active_tools
+from agent_runtime.tool_definitions import TOOLS, TOOL_RISK_LEVELS, get_active_tools, get_tool_risk_level
 from agent_runtime.tool_executor import execute_tool, load_installed_handlers, SCREENSHOT_PREFIX
 from core.task_tracker import complete_task, log_tool_step, start_task
 from core.agent_context import current_project, default_model
@@ -170,6 +170,7 @@ class Agent:
         plan_execute: bool = False,
         plan_context: str = "",
         conversation_id: int | None = None,
+        active_skill_package: str = "",
     ) -> Generator[dict[str, Any], None, None]:
         """LLM-driven agent loop.
 
@@ -186,7 +187,10 @@ class Agent:
             if not model:
                 yield from self._run_local_search(user_text, project)
                 return
-            yield from self._run_ask(user_text, model, project, expert_prompt, history, attachments)
+            yield from self._run_ask(
+                user_text, model, project, expert_prompt, history, attachments,
+                active_skill_package=active_skill_package,
+            )
             return
 
         if mode == "plan" and not plan_execute:
@@ -194,7 +198,10 @@ class Agent:
             if not model:
                 yield {"type": "error", "content": "想一想模式需要配置 AI 模型。"}
                 return
-            yield from self._run_plan_draft(user_text, model, project, expert_prompt, history, attachments)
+            yield from self._run_plan_draft(
+                user_text, model, project, expert_prompt, history, attachments,
+                active_skill_package=active_skill_package,
+            )
             return
 
         model = model or default_model()
@@ -227,6 +234,7 @@ class Agent:
                 request_permission=request_permission,
                 plan_context=plan_context,
                 task_id=task_id,
+                active_skill_package=active_skill_package,
             )
             complete_task(task_id, status="completed")
         except Exception:
@@ -252,8 +260,12 @@ class Agent:
         expert_prompt: str,
         history: list[dict] | None,
         attachments: list[str] | None,
+        *,
+        active_skill_package: str = "",
     ) -> Generator[dict[str, Any], None, None]:
-        system = self._build_system_prompt(expert_prompt, "ask", project)
+        system = self._build_system_prompt(
+            expert_prompt, "ask", project, active_skill_package=active_skill_package,
+        )
         messages = self._build_messages(system, user_text, project, history, attachments, model)
         yield from self._stream_chat_events(messages, model)
 
@@ -265,8 +277,12 @@ class Agent:
         expert_prompt: str,
         history: list[dict] | None,
         attachments: list[str] | None,
+        *,
+        active_skill_package: str = "",
     ) -> Generator[dict[str, Any], None, None]:
-        system = self._build_system_prompt(expert_prompt, "plan", project) + PLAN_DRAFT_SUFFIX
+        system = self._build_system_prompt(
+            expert_prompt, "plan", project, active_skill_package=active_skill_package,
+        ) + PLAN_DRAFT_SUFFIX
         messages = self._build_messages(system, user_text, project, history, attachments, model)
         full = ""
         for event in self._stream_chat_events(messages, model):
@@ -342,8 +358,11 @@ class Agent:
         request_permission: Callable[[dict], bool] | None,
         plan_context: str,
         task_id: int,
+        active_skill_package: str = "",
     ) -> Generator[dict[str, Any], None, None]:
-        system = self._build_system_prompt(expert_prompt, mode, project)
+        system = self._build_system_prompt(
+            expert_prompt, mode, project, active_skill_package=active_skill_package,
+        )
         if plan_context:
             system += f"\n\n用户已确认以下计划，请按步骤执行：\n{plan_context}"
         user_content = self._build_user_content(user_text, project)
@@ -422,7 +441,7 @@ class Agent:
                             approved = request_permission({
                                 "name": tc.name,
                                 "args": tc.arguments,
-                                "risk": TOOL_RISK_LEVELS.get(tc.name, "medium"),
+                                "risk": get_tool_risk_level(tc.name),
                             })
                         if not approved:
                             result = (
@@ -551,17 +570,28 @@ class Agent:
             if role == "assistant" and isinstance(content, str) and len(content) > 1500:
                 msg["content"] = content[:1500] + "…"
 
-    def _build_system_prompt(self, expert_prompt: str, mode: str, project: dict | None) -> str:
+    def _build_system_prompt(
+        self,
+        expert_prompt: str,
+        mode: str,
+        project: dict | None,
+        *,
+        active_skill_package: str = "",
+    ) -> str:
         from agent_runtime.skill_prompt_loader import build_skills_system_suffix
         from core.settings_runtime import build_agent_settings_suffix
 
         system = SYSTEM_PROMPT
         if expert_prompt:
             system = f"{expert_prompt}\n\n{system}"
-        skills_suffix = build_skills_system_suffix()
+        pf = active_skill_package.strip() or None
+        skills_suffix = build_skills_system_suffix(package_filter=pf)
         if skills_suffix:
             system += skills_suffix
         system += build_agent_settings_suffix()
+        from agent_runtime.mcp_client import build_mcp_prompt_suffix
+        if mode in ("craft", "plan"):
+            system += build_mcp_prompt_suffix()
         if mode == "ask":
             system += ASK_MODE_SUFFIX
         elif mode == "plan":

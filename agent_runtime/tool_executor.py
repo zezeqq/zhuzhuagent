@@ -34,6 +34,13 @@ def execute_tool(name: str, args: dict[str, Any]) -> str:
     if blocked:
         return blocked
 
+    from agent_runtime.mcp_client import execute_mcp_tool, is_mcp_tool
+    if is_mcp_tool(name):
+        try:
+            return execute_mcp_tool(name, args)
+        except Exception as exc:
+            return f"MCP tool error ({name}): {exc}"
+
     handler = _HANDLERS.get(name)
     if not handler:
         return f"错误：未知工具 '{name}'"
@@ -720,7 +727,7 @@ def load_installed_handlers() -> None:
         except Exception:
             continue
 
-        generic_handle = getattr(mod, "handle", None)
+        generic_handle = getattr(mod, "handle", None) or getattr(mod, "run", None)
 
         for tool_def in tools:
             t_name = tool_def.get("name", "")
@@ -730,4 +737,6 @@ def load_installed_handlers() -> None:
             if callable(specific):
                 _HANDLERS[t_name] = specific
             elif callable(generic_handle):
-                _HANDLERS[t_name] = generic_handle
+                def _make_handler(fn, tn):
+                    return lambda args, _fn=fn, _tn=tn: _fn({**args, "_tool": _tn})
+                _HANDLERS[t_name] = _make_handler(generic_handle, t_name)

@@ -16,15 +16,15 @@ from db.database import query_all
 class ConnectorDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("快捷启动管理")
-        self.setMinimumSize(720, 480)
+        self.setWindowTitle("Quick Launch & MCP")
+        self.setMinimumSize(720, 520)
         self.setObjectName("SettingsDialog")
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        header = QLabel("快捷启动管理")
+        header = QLabel("Quick Launch & MCP")
         header.setObjectName("SettingsSection")
         header.setContentsMargins(24, 20, 24, 12)
         root.addWidget(header)
@@ -37,21 +37,28 @@ class ConnectorDialog(QDialog):
         layout.setContentsMargins(24, 8, 24, 24)
         layout.setSpacing(20)
 
-        layout.addWidget(self._section("已配置软件"))
+        layout.addWidget(self._section("Configured apps"))
         self._sw_container = QVBoxLayout()
         self._sw_container.setSpacing(6)
         layout.addLayout(self._sw_container)
         self._refresh_software()
 
-        mcp_note = QLabel(
-            "MCP 协议接入仍在开发中。当前请通过「专家 → 快捷启动」配置本地程序路径后一键启动。"
+        layout.addWidget(self._section("MCP Servers"))
+        mcp_hint = QLabel(
+            "MCP connects external tool servers to the Agent (Craft/Plan). "
+            "Configure JSON, test connection, then use mcp__ tools in chat."
         )
-        mcp_note.setObjectName("MutedLabel")
-        mcp_note.setWordWrap(True)
-        layout.addWidget(mcp_note)
+        mcp_hint.setObjectName("MutedLabel")
+        mcp_hint.setWordWrap(True)
+        layout.addWidget(mcp_hint)
+        mcp_open = QPushButton("Open MCP configuration…")
+        mcp_open.setProperty("variant", "primary")
+        mcp_open.setFixedWidth(220)
+        mcp_open.clicked.connect(self._open_mcp)
+        layout.addWidget(mcp_open)
 
-        layout.addWidget(self._section("自定义启动项"))
-        custom_hint = QLabel("添加自定义命令行启动项，指定名称和启动命令。")
+        layout.addWidget(self._section("Custom launch items"))
+        custom_hint = QLabel("Add a custom command-line launcher (name + command).")
         custom_hint.setObjectName("MutedLabel")
         custom_hint.setWordWrap(True)
         layout.addWidget(custom_hint)
@@ -59,14 +66,14 @@ class ConnectorDialog(QDialog):
         form = QFormLayout()
         form.setSpacing(8)
         self._custom_name = QLineEdit()
-        self._custom_name.setPlaceholderText("启动项名称")
+        self._custom_name.setPlaceholderText("Display name")
         self._custom_cmd = QLineEdit()
-        self._custom_cmd.setPlaceholderText("启动命令，例如 python -m my_server")
-        form.addRow("名称", self._custom_name)
-        form.addRow("命令", self._custom_cmd)
+        self._custom_cmd.setPlaceholderText("e.g. python -m my_server")
+        form.addRow("Name", self._custom_name)
+        form.addRow("Command", self._custom_cmd)
         layout.addLayout(form)
 
-        add_custom = QPushButton("添加启动项")
+        add_custom = QPushButton("Add launch item")
         add_custom.setProperty("variant", "secondary")
         add_custom.setFixedWidth(160)
         add_custom.clicked.connect(self._add_custom_connector)
@@ -82,6 +89,10 @@ class ConnectorDialog(QDialog):
         label.setObjectName("SettingsSection")
         return label
 
+    def _open_mcp(self) -> None:
+        from ui.dialogs.mcp_dialog import MCPDialog
+        MCPDialog(self).exec()
+
     def _refresh_software(self) -> None:
         while self._sw_container.count():
             item = self._sw_container.takeAt(0)
@@ -90,7 +101,7 @@ class ConnectorDialog(QDialog):
 
         tools = query_all("SELECT * FROM software_tools WHERE enabled=1")
         if not tools:
-            empty = QLabel("尚未配置启动项。请在 专家 → 快捷启动 中添加。")
+            empty = QLabel("No launch items yet. Add them under Expert → Quick Launch.")
             empty.setObjectName("MutedLabel")
             self._sw_container.addWidget(empty)
             return
@@ -118,7 +129,7 @@ class ConnectorDialog(QDialog):
             path_label.setObjectName("MutedLabel")
             row.addWidget(path_label, 1)
 
-            launch_btn = QPushButton("启动")
+            launch_btn = QPushButton("Launch")
             launch_btn.setProperty("variant", "pill")
             launch_btn.setFixedWidth(64)
             sid = sw["id"]

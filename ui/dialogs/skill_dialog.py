@@ -14,14 +14,17 @@ from PySide6.QtWidgets import (
 )
 
 from agent_runtime.skill_files import list_skill_files, read_skill_file, write_skill_file
-from agent_runtime.skill_installer import install_market_skill, install_skill_from_url
+from agent_runtime.skill_installer import install_from_catalog, install_skill_from_url
 from agent_runtime.tool_executor import load_installed_handlers
 from core.skill_catalog import (
     INSTALLED_SKILLS_DIR,
-    RECOMMENDED_SKILLS,
     SKILL_CATEGORIES,
+    catalog_skills_for_category,
     get_installed_package_names,
+    install_success_message,
+    is_planned_skill,
     is_skill_installed,
+    skill_type_label,
 )
 from db.database import execute, query_all
 
@@ -153,9 +156,7 @@ class SkillDialog(QDialog):
                 item.widget().deleteLater()
         self._skill_cards.clear()
         installed = get_installed_package_names()
-        skills = RECOMMENDED_SKILLS if category == "全部" else [
-            s for s in RECOMMENDED_SKILLS if s["category"] == category
-        ]
+        skills = catalog_skills_for_category(category)
         for idx, skill in enumerate(skills):
             card = self._skill_card(skill, installed)
             self._grid_layout.addWidget(card, idx // 3, idx % 3)
@@ -178,21 +179,34 @@ class SkillDialog(QDialog):
         cat_label.setObjectName("MutedLabel")
         top.addWidget(cat_label)
         layout.addLayout(top)
+        type_lbl = QLabel(skill_type_label(skill))
+        type_lbl.setObjectName("MutedLabel")
+        type_lbl.setStyleSheet("font-size:10px; color:#94a3b8;")
+        layout.addWidget(type_lbl)
         desc_label = QLabel(skill["desc"])
         desc_label.setObjectName("MutedLabel")
         desc_label.setWordWrap(True)
         layout.addWidget(desc_label)
         already = is_skill_installed(skill, installed)
-        install_btn = QPushButton("✓ 已安装" if already else "＋ 安装")
+        planned = is_planned_skill(skill)
+        if planned:
+            install_btn = QPushButton("规划中")
+            install_btn.setEnabled(False)
+        else:
+            install_btn = QPushButton("✓ 已安装" if already else "＋ 安装")
+            install_btn.setEnabled(not already)
         install_btn.setProperty("variant", "secondary")
         install_btn.setCursor(Qt.PointingHandCursor)
         install_btn.setFixedHeight(30)
-        install_btn.setEnabled(not already)
-        install_btn.clicked.connect(lambda: self._install_market(skill, install_btn))
+        if not planned:
+            install_btn.clicked.connect(lambda: self._install_market(skill, install_btn))
         layout.addWidget(install_btn)
         return card
 
     def _install_market(self, skill: dict, btn: QPushButton) -> None:
+        if is_planned_skill(skill):
+            QMessageBox.information(self, "规划中", "该技能尚在规划中，暂不可安装。")
+            return
         btn.setEnabled(False)
         btn.setText("安装中…")
         try:
@@ -200,18 +214,13 @@ class SkillDialog(QDialog):
             if download_url:
                 result = install_skill_from_url(download_url)
             else:
-                result = install_market_skill(
-                    skill["name"],
-                    skill["display"],
-                    skill["desc"],
-                    skill_md=skill.get("skill_md", ""),
-                )
+                result = install_from_catalog(skill)
             load_installed_handlers()
             btn.setText("✓ 已安装")
             path = result.get("install_path", "")
             QMessageBox.information(
                 self, "安装成功",
-                f"技能「{skill['display']}」已安装。\n\n路径：{path}\n\n新开对话或继续聊天时 Agent 会自动加载。",
+                install_success_message(skill, path),
             )
             self._refresh_installed()
             self._render_skills(self._current_category())
@@ -349,6 +358,12 @@ class SkillDialog(QDialog):
         open_pkg_btn.setCursor(Qt.PointingHandCursor)
         open_pkg_btn.clicked.connect(self._open_selected_folder)
         meta_row.addWidget(open_pkg_btn)
+        preview_btn = QPushButton("👁 预览注入")
+        preview_btn.setProperty("variant", "ghost")
+        preview_btn.setCursor(Qt.PointingHandCursor)
+        preview_btn.setToolTip("预览该 Skill 将注入 Agent 的 prompt 片段")
+        preview_btn.clicked.connect(self._preview_injected_prompt)
+        meta_row.addWidget(preview_btn)
         right_layout.addLayout(meta_row)
 
         file_row = QHBoxLayout()
@@ -551,6 +566,27 @@ class SkillDialog(QDialog):
             item.setText(f"{'✓' if checked else '○'}  {display}")
         self._editor_status.setText("启用状态已更新")
 
+    def _preview_injected_prompt(self) -> None:
+        if not self._current_pkg:
+            QMessageBox.information(self, "预览", "请先在左侧选择一个 Skill。")
+            return
+        from agent_runtime.skill_prompt_loader import preview_skill_prompt
+        pkg = self._current_pkg.get("package_name", "")
+        text = preview_skill_prompt(pkg)
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"注入预览 — {self._current_pkg.get('display_name', pkg)}")
+        dlg.setMinimumSize(560, 420)
+        lay = QVBoxLayout(dlg)
+        editor = QPlainTextEdit()
+        editor.setPlainText(text)
+        editor.setReadOnly(True)
+        editor.setFont(QFont("Consolas", 10))
+        lay.addWidget(editor)
+        close = QPushButton("关闭")
+        close.clicked.connect(dlg.accept)
+        lay.addWidget(close)
+        dlg.exec()
+
     def _open_skill_root(self) -> None:
         import os
         SKILL_ROOT.mkdir(parents=True, exist_ok=True)
@@ -693,11 +729,17 @@ class SkillDialog(QDialog):
             "name": pkg_name,
             "display_name": name.strip(),
             "version": "0.1.0",
+            "skill_type": "prompt",
             "description": f"自定义技能: {name.strip()}",
-            "entry": "SKILL.md",
+            "entry": "skill.py",
             "prompt_entry": "SKILL.md",
         }
         (skill_dir / "skill.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        (skill_dir / "skill.py").write_text(
+            'def handle(args: dict) -> str:\n'
+            '    return "自定义 prompt Skill，请编辑 SKILL.md。"\n',
+            encoding="utf-8",
+        )
 
         self._register_uploaded(pkg_name, manifest, skill_dir)
         self._refresh_installed()

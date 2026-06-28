@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from agent_runtime.tool_definitions import TOOL_RISK_LEVELS
+from agent_runtime.tool_definitions import TOOL_RISK_LEVELS, get_tool_risk_level
 
 HIGH_RISK_TOOLS = {"file_delete", "keyboard_type", "mouse_click"}
 
@@ -12,7 +12,7 @@ LOW_RISK_TOOLS = {"file_read", "file_list", "open_url", "office_word_create",
 
 
 def get_risk_level(tool_name: str) -> str:
-    return TOOL_RISK_LEVELS.get(tool_name, "medium")
+    return get_tool_risk_level(tool_name)
 
 
 def requires_confirmation(tool_name: str, full_access: bool = False) -> bool:

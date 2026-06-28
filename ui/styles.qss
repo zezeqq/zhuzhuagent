@@ -300,7 +300,7 @@ QMainWindow {
 }
 #ModeButton:hover:!checked { color: @TEXT; background: @HOVER; }
 
-#ToolbarCombo {
+#ModeCombo, #ToolbarCombo {
     background-color: @CARD;
     color: @TEXT;
     border: 1px solid @BORDER;
@@ -309,11 +309,11 @@ QMainWindow {
     font-size: 12px;
     min-height: 28px;
 }
-#ToolbarCombo::drop-down {
+#ModeCombo::drop-down, #ToolbarCombo::drop-down {
     border: none;
     width: 20px;
 }
-#ToolbarCombo QAbstractItemView {
+#ModeCombo QAbstractItemView, #ToolbarCombo QAbstractItemView {
     background-color: @CARD;
     color: @TEXT;
     border: 1px solid @BORDER;

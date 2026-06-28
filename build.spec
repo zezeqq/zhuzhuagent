@@ -33,6 +33,7 @@ datas = [
 hiddenimports = [
     "httpx",
     "httpx._transports.default",
+    "httpx_sse",
     "PIL",
     "PIL.Image",
     "PIL.ImageGrab",
@@ -46,11 +47,22 @@ hiddenimports = [
     "rapidocr_onnxruntime",
     "onnxruntime",
     "numpy",
+    # MCP SDK (lazy-imported in agent_runtime.mcp_client)
+    "mcp",
+    "mcp.client",
+    "mcp.client.stdio",
+    "mcp.client.sse",
+    "mcp.client.streamable_http",
+    "pydantic_settings",
+    "sse_starlette",
+    "starlette",
+    "uvicorn",
+    "jsonschema",
 ]
 
 binaries = []
 
-for pkg in ("PySide6",):
+for pkg in ("PySide6", "mcp"):
     try:
         tmp_ret = collect_all(pkg)
         datas += tmp_ret[0]
@@ -65,6 +77,10 @@ hiddenimports += collect_submodules("agent_runtime")
 hiddenimports += collect_submodules("db")
 hiddenimports += collect_submodules("artifacts")
 hiddenimports += collect_submodules("rag")
+try:
+    hiddenimports += collect_submodules("mcp")
+except Exception:
+    pass
 
 a = Analysis(
     [str(project_root / "main.py")],

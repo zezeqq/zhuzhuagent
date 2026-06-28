@@ -29,9 +29,25 @@ def main():
 
     from core.settings_runtime import apply_app_settings, check_skill_updates_on_startup
     from core.settings_runtime import reload_skill_handlers
+    from core.settings_store import get_bool
 
     reload_skill_handlers()
     check_skill_updates_on_startup()
+
+    if get_bool("enable_mcp", True):
+        try:
+            import mcp  # noqa: F401
+        except ImportError:
+            logger.warning("MCP SDK missing in this venv — run: pip install mcp")
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                None,
+                f"{APP_NAME} — MCP",
+                "当前 Python 环境未安装 MCP SDK，MCP 工具不可用。\n\n"
+                "请在项目虚拟环境中执行：\n"
+                "  pip install mcp\n\n"
+                "或：pip install -r requirements.txt",
+            )
 
     window = MainWindow()
     apply_app_settings(app, window)
@@ -41,6 +57,18 @@ def main():
     scheduler.automation_due.connect(lambda cid, _n, _p: window._on_automation_triggered(cid))
     scheduler.start()
     window._automation_scheduler = scheduler
+
+    import threading
+    from agent_runtime.mcp_client import ensure_mcp_tools_loaded, get_mcp_status_summary, mcp_enabled
+
+    def _mcp_startup() -> None:
+        if not mcp_enabled():
+            return
+        msg = ensure_mcp_tools_loaded()
+        summary = get_mcp_status_summary()
+        logger.info("MCP startup: %s | tools=%s connected=%s", msg, summary.get("tool_count"), summary.get("connected"))
+
+    threading.Thread(target=_mcp_startup, daemon=True, name="MCPStartup").start()
 
     window.show()
     sys.exit(app.exec())

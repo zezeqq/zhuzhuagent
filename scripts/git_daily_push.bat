@@ -1,12 +1,26 @@
 @echo off
+
 setlocal
+
 cd /d "%~dp0.."
-if "%~1"=="" goto usage
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0git_push.ps1" -Message "%*"
-goto end
-:usage
-powershell -NoProfile -Command "Write-Host ''; Write-Host 'Usage: git_daily_push.bat \"commit message\"'; Write-Host 'Example: git_daily_push.bat \"fix: description\"'; Write-Host ''"
+
+set GIT_AUTHOR_NAME=zezeqq
+
+set GIT_COMMITTER_NAME=zezeqq
+
+set GIT_AUTHOR_EMAIL=1432450835@qq.com
+
+set GIT_COMMITTER_EMAIL=1432450835@qq.com
+
+if "%~1"=="" (
+
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0git_push.ps1" -Auto
+
+) else (
+
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0git_push.ps1" -Message "%*"
+
+)
+
 pause
-exit /b 1
-:end
-pause
+
