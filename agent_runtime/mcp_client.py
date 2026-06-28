@@ -21,6 +21,7 @@ MCP_TOOL_PREFIX = "mcp__"
 _TRUNCATE = 8000
 _CONNECT_TIMEOUT = 90
 _CALL_TIMEOUT = 120
+_refresh_sync_lock = threading.RLock()
 _refresh_lock = threading.Lock()
 
 _SERVER_ID_RE = re.compile(r"[^a-zA-Z0-9_-]+")
@@ -196,6 +197,7 @@ class MCPClientManager:
         self._tool_risks: dict[str, str] = {}
         self._last_error: str = ""
         self._server_name_map: dict[str, str] = {}
+        self._async_lock: asyncio.Lock | None = None
 
     def _ensure_loop(self) -> asyncio.AbstractEventLoop:
         with self._lock:
@@ -211,31 +213,49 @@ class MCPClientManager:
 
     def _run_coro(self, coro, timeout: float = _CONNECT_TIMEOUT) -> Any:
         loop = self._ensure_loop()
-        fut = asyncio.run_coroutine_threadsafe(coro, loop)
+
+        async def _guarded() -> Any:
+            if self._async_lock is None:
+                self._async_lock = asyncio.Lock()
+            async with self._async_lock:
+                return await coro
+
+        fut = asyncio.run_coroutine_threadsafe(_guarded(), loop)
         return fut.result(timeout=timeout)
 
+    async def _disconnect_server(self, state: _ServerState) -> None:
+        stack = state.stack
+        state.stack = None
+        state.session = None
+        state.tools = []
+        if not stack:
+            return
+        try:
+            await stack.aclose()
+        except Exception as exc:
+            msg = str(exc).lower()
+            if "cancel scope" in msg or "generatorexit" in msg:
+                logger.debug("MCP disconnect %s (ignored): %s", state.server_id, exc)
+            else:
+                logger.debug("MCP disconnect %s: %s", state.server_id, exc)
+
     def shutdown(self) -> None:
-        with self._lock:
-            if not self._loop or not self._loop.is_running():
-                return
-            try:
-                self._run_coro(self._disconnect_all(), timeout=30)
-            except Exception:
-                pass
-            self._loop.call_soon_threadsafe(self._loop.stop)
-            self._loop = None
-            self._thread = None
+        with _refresh_sync_lock:
+            with self._lock:
+                if not self._loop or not self._loop.is_running():
+                    return
+                try:
+                    self._run_coro(self._disconnect_all(), timeout=30)
+                except Exception:
+                    pass
+                self._loop.call_soon_threadsafe(self._loop.stop)
+                self._loop = None
+                self._thread = None
+                self._async_lock = None
 
     async def _disconnect_all(self) -> None:
         for state in list(self._servers.values()):
-            if state.stack:
-                try:
-                    await state.stack.aclose()
-                except Exception as exc:
-                    logger.debug("MCP disconnect %s: %s", state.server_id, exc)
-            state.stack = None
-            state.session = None
-            state.tools = []
+            await self._disconnect_server(state)
         self._servers.clear()
         self._tool_defs.clear()
         self._tool_risks.clear()
@@ -243,18 +263,22 @@ class MCPClientManager:
 
     def refresh_sync(self) -> str:
         """Reconnect all enabled MCP servers. Returns status summary."""
-        if not mcp_enabled():
-            self._run_coro(self._disconnect_all(), timeout=30)
-            self._last_error = ""
-            return "MCP disabled in settings."
-        try:
-            msg = self._run_coro(self._refresh_all(), timeout=_CONNECT_TIMEOUT)
-            self._last_error = ""
-            return msg
-        except Exception as exc:
-            self._last_error = str(exc)
-            logger.exception("MCP refresh failed")
-            return f"MCP refresh failed: {exc}"
+        with _refresh_sync_lock:
+            if not mcp_enabled():
+                try:
+                    self._run_coro(self._disconnect_all(), timeout=30)
+                except Exception:
+                    pass
+                self._last_error = ""
+                return "MCP disabled in settings."
+            try:
+                msg = self._run_coro(self._refresh_all(), timeout=_CONNECT_TIMEOUT)
+                self._last_error = ""
+                return msg
+            except Exception as exc:
+                self._last_error = str(exc)
+                logger.exception("MCP refresh failed")
+                return f"MCP refresh failed: {exc}"
 
     async def _refresh_all(self) -> str:
         await self._disconnect_all()

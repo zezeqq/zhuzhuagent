@@ -125,6 +125,7 @@ def _normalize_remote_skill(rs: dict) -> dict:
     entry.setdefault("skill_type", "prompt")
     entry.setdefault("category", "远程")
     entry.setdefault("icon", "🌐")
+    entry.setdefault("tags", [])
     entry["remote"] = True
     return entry
 

@@ -59,6 +59,7 @@ def main():
     window._automation_scheduler = scheduler
 
     import threading
+    from PySide6.QtCore import QTimer
     from agent_runtime.mcp_client import ensure_mcp_tools_loaded, get_mcp_status_summary, mcp_enabled
 
     def _mcp_startup() -> None:
@@ -68,7 +69,11 @@ def main():
         summary = get_mcp_status_summary()
         logger.info("MCP startup: %s | tools=%s connected=%s", msg, summary.get("tool_count"), summary.get("connected"))
 
-    threading.Thread(target=_mcp_startup, daemon=True, name="MCPStartup").start()
+    def _schedule_mcp_startup() -> None:
+        threading.Thread(target=_mcp_startup, daemon=True, name="MCPStartup").start()
+
+    # 等主窗口就绪后再连 MCP，避免与 UI 初始化并发抢连
+    QTimer.singleShot(800, _schedule_mcp_startup)
 
     window.show()
     sys.exit(app.exec())
