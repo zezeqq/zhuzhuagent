@@ -40,3 +40,8 @@ $null
 # Scratch / temp
 temp_*.ps1
 line_count.txt
+
+# Test / lint caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/

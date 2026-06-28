@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # DNA Work Agent
 
 DNA Work Agent 是一个面向工程技术领域的本地 AI 桌面 Agent 平台，采用 WorkBuddy 风格的三栏工作台设计。
@@ -80,3 +81,6 @@ python main.py
 - OpenAI Compatible API（支持 20+ 国内外模型供应商）
 - python-docx / openpyxl / python-pptx 文件生成
 - PyMuPDF / pypdf 文档解析
+=======
+# -agent
+>>>>>>> fb1fc0fdfc149e3628690cfdd5aa893e3b010314
