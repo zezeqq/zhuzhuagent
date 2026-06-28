@@ -363,6 +363,10 @@ def is_skill_installed(skill: dict, installed: set[str] | None = None) -> bool:
 
 
 def list_featured_skills() -> list[dict]:
+    from core.remote_catalog import list_hot_remote_skills
+    hot = list_hot_remote_skills()
+    if hot:
+        return hot
     return [s for s in all_catalog_skills() if s.get("featured") and not is_planned_skill(s)]
 
 

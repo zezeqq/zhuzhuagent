@@ -56,6 +56,8 @@ from core.skill_catalog import (
 from core.remote_catalog import (
     fetch_remote_catalog,
     get_catalog_url,
+    list_hot_remote_experts,
+    list_hot_remote_skills,
     load_cached_catalog,
     remote_experts_merged_with_local,
 )
@@ -153,11 +155,16 @@ class _ExpertCard(QFrame):
 class _SkillCard(QFrame):
     install_requested = Signal(str)
 
-    def __init__(self, skill: dict, installed: bool = False, parent=None):
+    def __init__(self, skill: dict, installed: bool = False, *, hot: bool = False, parent=None):
         super().__init__(parent)
-        self.setObjectName("ActionCard")
+        self.setObjectName("HotSkillCard" if hot else "ActionCard")
         self._skill = skill
         self._planned = is_planned_skill(skill)
+        if hot:
+            self.setStyleSheet(
+                "QFrame#HotSkillCard { border: 1px solid #f97316; border-radius: 10px; "
+                "background: rgba(249,115,22,0.06); }"
+            )
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(10)
@@ -178,8 +185,12 @@ class _SkillCard(QFrame):
         n.setStyleSheet("font-size:13px;")
         col.addWidget(n)
         badge_text = skill_type_label(skill)
+        if skill.get("hot") or hot:
+            badge_text = "🔥 热门 · " + badge_text
         if skill.get("remote"):
             badge_text += " · 远程"
+        if skill.get("hot_rank"):
+            badge_text += f" · #{skill['hot_rank']}"
         badge = QLabel(badge_text)
         badge.setStyleSheet("font-size:10px; color:#94a3b8;")
         col.addWidget(badge)
@@ -530,6 +541,7 @@ def _on_filter_click(bar: QFrame, category: str, callback):
 
 class ExpertCenterPage(QFrame):
     expert_selected = Signal(str, str)
+    _remote_catalog_done = Signal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -541,6 +553,8 @@ class ExpertCenterPage(QFrame):
         self._skill_cards: dict[str, _SkillCard] = {}
         self._connector_cards: list[_ConnectorCard] = []
         self._installed_skill_names: set[str] = set()
+        self._catalog_refresh_busy = False
+        self._remote_catalog_done.connect(self._finish_remote_refresh)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -592,14 +606,42 @@ class ExpertCenterPage(QFrame):
 
     def _startup_catalog_refresh(self):
         """启动后后台拉远程目录并刷新当前 Tab。"""
-        def work():
-            try:
-                fetch_remote_catalog(force=False)
-            except Exception:
-                pass
-            QTimer.singleShot(0, self._apply_catalog_to_ui)
+        self._run_remote_catalog_fetch(force=False, show_dialog=False)
 
-        threading.Thread(target=work, daemon=True, name="RemoteCatalogRefresh").start()
+    def _run_remote_catalog_fetch(self, *, force: bool, show_dialog: bool) -> None:
+        if self._catalog_refresh_busy:
+            return
+        self._catalog_refresh_busy = True
+        if show_dialog:
+            self._skill_refresh_btn.setEnabled(False)
+            self._skill_refresh_btn.setText("刷新中…")
+
+        def work():
+            err = None
+            try:
+                fetch_remote_catalog(force=force)
+            except Exception as exc:
+                err = exc
+            self._remote_catalog_done.emit((err, show_dialog))
+
+        threading.Thread(
+            target=work, daemon=True, name="RemoteCatalogFetch",
+        ).start()
+
+        if show_dialog:
+            QTimer.singleShot(15000, self._catalog_refresh_watchdog)
+
+    def _catalog_refresh_watchdog(self):
+        """防止回调丢失时按钮永久卡在「刷新中」。"""
+        if not self._catalog_refresh_busy:
+            return
+        self._catalog_refresh_busy = False
+        self._skill_refresh_btn.setEnabled(True)
+        self._skill_refresh_btn.setText("从网络刷新")
+        self._update_catalog_status_label()
+        self._catalog_status.setText(
+            self._catalog_status.text() + " · 刷新超时，请重试"
+        )
 
     def _apply_catalog_to_ui(self):
         self._update_catalog_status_label()
@@ -769,7 +811,20 @@ class ExpertCenterPage(QFrame):
         layout.addWidget(self._catalog_status)
         self._update_catalog_status_label()
 
-        rec_title = QLabel("为你推荐")
+        self._hot_section_title = QLabel("🔥 网络热门")
+        self._hot_section_title.setObjectName("SectionTitle")
+        layout.addWidget(self._hot_section_title)
+
+        self._hot_status = QLabel("")
+        self._hot_status.setObjectName("MutedLabel")
+        layout.addWidget(self._hot_status)
+
+        self._hot_skill_grid_widget = QWidget()
+        self._hot_skill_grid = QGridLayout(self._hot_skill_grid_widget)
+        self._hot_skill_grid.setSpacing(10)
+        layout.addWidget(self._hot_skill_grid_widget)
+
+        rec_title = QLabel("全部技能")
         rec_title.setObjectName("SectionTitle")
         layout.addWidget(rec_title)
 
@@ -782,6 +837,7 @@ class ExpertCenterPage(QFrame):
         layout.addWidget(self._skill_grid_widget)
 
         self._populate_skill_grid(all_catalog_skills())
+        self._refresh_hot_skills_ui()
 
         layout.addStretch()
         scroll.setWidget(content)
@@ -791,14 +847,18 @@ class ExpertCenterPage(QFrame):
         url = get_catalog_url()
         cached = load_cached_catalog() or {}
         n_skills = len(cached.get("skills") or [])
+        n_hot = len(cached.get("hot_skills") or [])
         n_experts = len(cached.get("experts") or [])
         updated = cached.get("updated_at") or ""
+        ver = cached.get("version") or ""
         err = cached.get("fetch_error") or ""
 
-        if cached.get("source_url") == url and (n_skills or n_experts):
-            extra = f" · 已缓存 {n_skills} 技能 / {n_experts} 专家"
+        if cached.get("source_url") == url and (n_hot or n_skills or n_experts):
+            extra = f" · 热门 {n_hot} · 覆盖 {n_skills} · 专家 {n_experts}"
+            if ver:
+                extra += f" · v{ver}"
             if updated:
-                extra += f" · 更新于 {updated}"
+                extra += f" · {updated}"
             self._catalog_status.setText(f"远程目录：{url}{extra}")
         elif err:
             self._catalog_status.setText(
@@ -806,33 +866,79 @@ class ExpertCenterPage(QFrame):
             )
         else:
             self._catalog_status.setText(
-                f"远程目录：{url} · 正在拉取或尚未缓存，请稍候或点「从网络刷新」"
+                f"远程目录：{url} · 正在拉取，请稍候或点「从网络刷新」"
             )
 
+    def _refresh_hot_skills_ui(self):
+        while self._hot_skill_grid.count():
+            item = self._hot_skill_grid.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        show_hot = self._skill_filter_cat == "全部" and not self._search_text
+        self._hot_section_title.setVisible(show_hot)
+        self._hot_status.setVisible(show_hot)
+        self._hot_skill_grid_widget.setVisible(show_hot)
+        if not show_hot:
+            return
+
+        hot_skills = list_hot_remote_skills()
+        if self._search_text:
+            q = self._search_text
+            hot_skills = [
+                s for s in hot_skills
+                if q in s.get("name", "").lower()
+                or q in s.get("display", "").lower()
+                or q in s.get("desc", "").lower()
+            ]
+
+        if not hot_skills:
+            self._hot_status.setText("暂无远程热门（点「从网络刷新」或检查网络）")
+            return
+
+        self._hot_status.setText(
+            f"共 {len(hot_skills)} 个热门 Skill（来自 GitHub 远程目录，可安装使用）"
+        )
+        for i, s in enumerate(hot_skills):
+            installed = is_skill_installed(s, self._installed_skill_names)
+            card = _SkillCard(s, installed=installed, hot=True)
+            card.install_requested.connect(self._on_skill_install)
+            self._skill_cards[s["name"]] = card
+            self._hot_skill_grid.addWidget(card, i // 3, i % 3)
+
     def _refresh_remote_catalog(self):
-        self._skill_refresh_btn.setEnabled(False)
-        self._skill_refresh_btn.setText("刷新中…")
+        self._run_remote_catalog_fetch(force=True, show_dialog=True)
 
-        def work():
-            err = None
-            try:
-                fetch_remote_catalog(force=True)
-            except Exception as exc:
-                err = exc
-            QTimer.singleShot(0, lambda: self._finish_remote_refresh(err))
+    def _finish_remote_refresh(self, payload):
+        if isinstance(payload, tuple):
+            err, show_dialog = payload
+        else:
+            err, show_dialog = payload, True
 
-        threading.Thread(target=work, daemon=True, name="RemoteCatalogForce").start()
-
-    def _finish_remote_refresh(self, err: Exception | None):
+        self._catalog_refresh_busy = False
         self._skill_refresh_btn.setEnabled(True)
         self._skill_refresh_btn.setText("从网络刷新")
         self._update_catalog_status_label()
         self._filter_experts(self._expert_filter_cat)
         self._filter_skills(self._skill_filter_cat)
+        self._refresh_hot_skills_ui()
+
+        if not show_dialog:
+            return
         if err:
             QMessageBox.warning(self, "刷新失败", f"无法拉取远程目录：\n{err}")
         else:
-            QMessageBox.information(self, "刷新完成", "已从网络拉取最新技能与专家目录。")
+            cached = load_cached_catalog() or {}
+            n_hot = len(cached.get("hot_skills") or [])
+            n_skills = len(cached.get("skills") or [])
+            n_experts = len(cached.get("experts") or [])
+            QMessageBox.information(
+                self, "刷新完成",
+                f"已从网络更新目录。\n\n"
+                f"🔥 热门 Skill：{n_hot} 个（顶部橙色区域）\n"
+                f"覆盖更新：{n_skills} 个\n"
+                f"远程专家：{n_experts} 个",
+            )
 
     def _populate_skill_grid(self, skills: list[dict]):
         while self._skill_grid.count():
@@ -863,6 +969,7 @@ class ExpertCenterPage(QFrame):
             ]
 
         self._populate_skill_grid(filtered)
+        self._refresh_hot_skills_ui()
 
     def _on_skill_install(self, skill_name: str):
         from agent_runtime.tool_executor import load_installed_handlers

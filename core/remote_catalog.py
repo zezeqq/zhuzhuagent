@@ -27,7 +27,7 @@ def _cache_path() -> Path:
     return data_dir() / "remote_catalog_cache.json"
 
 
-def _fetch_json(url: str, timeout: float = 20.0) -> dict:
+def _fetch_json(url: str, timeout: float = 10.0) -> dict:
     req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT, "Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         raw = resp.read().decode("utf-8", errors="replace")
@@ -62,6 +62,49 @@ def load_cached_catalog() -> dict | None:
         return None
 
 
+def cached_remote_manifest() -> dict:
+    """UI 线程安全：只读本地缓存，不发起网络请求。"""
+    return load_cached_catalog() or {
+        "skills": [],
+        "hot_skills": [],
+        "experts": [],
+        "fetched_at": 0,
+        "source_url": "",
+    }
+
+
+def _normalize_remote_skill(rs: dict) -> dict:
+    entry = dict(rs)
+    entry.setdefault("skill_type", "prompt")
+    entry.setdefault("category", "远程")
+    entry.setdefault("icon", "🌐")
+    entry["remote"] = True
+    return entry
+
+
+def list_hot_remote_skills() -> list[dict]:
+    """远程热门 Skill（来自 catalog hot_skills，按 hot_rank 排序）。"""
+    manifest = cached_remote_manifest()
+    hot = manifest.get("hot_skills") or []
+    if hot:
+        items = [_normalize_remote_skill(s) for s in hot if isinstance(s, dict) and s.get("name")]
+    else:
+        items = [
+            _normalize_remote_skill(s)
+            for s in manifest.get("skills", [])
+            if isinstance(s, dict) and s.get("name") and (s.get("hot") or s.get("featured"))
+        ]
+    items.sort(key=lambda s: int(s.get("hot_rank", 999)))
+    return items
+
+
+def list_hot_remote_experts(local_experts: list[dict]) -> list[dict]:
+    """远程热门专家（hot 标记或 provider 含远程）。"""
+    merged = remote_experts_merged_with_local(local_experts)
+    hot = [e for e in merged if e.get("hot") or e.get("remote")]
+    return hot[:8]
+
+
 def fetch_remote_catalog(*, force: bool = False) -> dict:
     """Return merged remote manifest; uses disk cache when fresh."""
     url = get_catalog_url()
@@ -82,13 +125,18 @@ def fetch_remote_catalog(*, force: bool = False) -> dict:
             "version": data.get("version", 1),
             "updated_at": data.get("updated_at", ""),
             "skills": list(data.get("skills") or []),
+            "hot_skills": list(data.get("hot_skills") or []),
             "experts": list(data.get("experts") or []),
             "fetched_at": time.time(),
             "source_url": url,
         }
         _cache_path().write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         set_setting("remote_catalog_last_fetch", str(int(payload["fetched_at"])), "string")
-        logger.info("Remote catalog fetched: %d skills, %d experts", len(payload["skills"]), len(payload["experts"]))
+        n_hot = len(payload["hot_skills"])
+        logger.info(
+            "Remote catalog fetched: %d hot, %d skills, %d experts",
+            n_hot, len(payload["skills"]), len(payload["experts"]),
+        )
         return payload
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
         logger.warning("Remote catalog fetch failed: %s", exc)
@@ -108,20 +156,21 @@ def remote_skills_merged_with_local() -> list[dict]:
         by_name[s.get("name", "").lower()] = dict(s)
 
     try:
-        remote = fetch_remote_catalog()
+        remote = cached_remote_manifest()
     except Exception:
-        remote = load_cached_catalog() or {"skills": []}
+        remote = {"skills": []}
 
     for rs in remote.get("skills") or []:
         if not isinstance(rs, dict) or not rs.get("name"):
             continue
         key = str(rs["name"]).lower().replace(" ", "_")
-        entry = dict(rs)
-        entry.setdefault("skill_type", "prompt")
-        entry.setdefault("category", "远程")
-        entry.setdefault("icon", "🌐")
-        entry["remote"] = True
-        by_name[key] = entry
+        by_name[key] = _normalize_remote_skill(rs)
+
+    for rs in remote.get("hot_skills") or []:
+        if not isinstance(rs, dict) or not rs.get("name"):
+            continue
+        key = str(rs["name"]).lower().replace(" ", "_")
+        by_name[key] = _normalize_remote_skill(rs)
 
     return list(by_name.values())
 
@@ -133,9 +182,9 @@ def remote_experts_merged_with_local(local_experts: list[dict]) -> list[dict]:
         by_name[e.get("name", "")] = dict(e)
 
     try:
-        remote = fetch_remote_catalog()
+        remote = cached_remote_manifest()
     except Exception:
-        remote = load_cached_catalog() or {"experts": []}
+        remote = {"experts": []}
 
     for re in remote.get("experts") or []:
         if not isinstance(re, dict) or not re.get("name"):

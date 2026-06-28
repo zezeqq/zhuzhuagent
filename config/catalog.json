@@ -10,7 +10,9 @@
       "icon": "🐙",
       "skill_type": "prompt",
       "featured": true,
-      "recommended_mcp": ["github"],
+      "recommended_mcp": [
+        "github"
+      ],
       "skill_md": "# GitHub 助手\n\n当用户询问 GitHub 仓库、Issue、PR、文件内容时使用本 Skill。\n\n## 步骤\n\n1. 确认 owner/repo 与分支\n2. 优先调用 `mcp__github__*` 系列工具\n3. 汇总结果，标注来源链接\n\n## 注意\n\n- 私有仓库需配置 PAT\n- 无 MCP 时提示用户到 专家 → MCP 启用 GitHub\n"
     },
     {
@@ -30,17 +32,25 @@
       "category": "研究",
       "icon": "🌐",
       "skill_type": "prompt",
-      "recommended_mcp": ["fetch", "brave-search"],
+      "recommended_mcp": [
+        "fetch",
+        "brave-search"
+      ],
       "skill_md": "# Web Access（远程目录版）\n\n用户需要读网页、搜新闻、抓公开数据时使用。\n\n1. 有 Brave Search MCP → 先搜索再 Fetch\n2. 仅有 Fetch → 直接抓取 URL\n3. 禁止编造未抓取到的内容\n"
     }
   ],
+  "hot_skills": [],
   "experts": [
     {
       "name": "MCP 配置顾问",
       "provider": "Buddy 远程",
       "category": "技术工程",
       "desc": "帮助配置 MCP Server、排查 npx/Token/连通性问题",
-      "tags": ["MCP", "配置", "远程"],
+      "tags": [
+        "MCP",
+        "配置",
+        "远程"
+      ],
       "prompt": "你是 MCP 配置顾问。用户在使用 Buddy 桌面 Agent。帮助其启用 Filesystem、GitHub、Fetch、Brave 等 MCP；解释 Test & reload、PATH、Node.js、PAT Token。步骤清晰，可给出 PowerShell 检查命令。"
     },
     {
@@ -48,7 +58,11 @@
       "provider": "Buddy 远程",
       "category": "技术工程",
       "desc": "Issue/PR 流程、仓库结构、Actions 与协作规范",
-      "tags": ["GitHub", "协作", "远程"],
+      "tags": [
+        "GitHub",
+        "协作",
+        "远程"
+      ],
       "prompt": "你是 GitHub 协作顾问。熟悉 Issue、PR、Review、Branch 策略。结合 MCP GitHub 工具给出可执行步骤，回答简洁专业。"
     },
     {
@@ -56,8 +70,14 @@
       "provider": "DNA 远程",
       "category": "办公效率",
       "desc": "远程更新：针对公路机电/信息化项目投标技术方案润色",
-      "tags": ["投标", "方案", "远程"],
+      "tags": [
+        "投标",
+        "方案",
+        "远程"
+      ],
       "prompt": "你是公路机电与信息化项目投标技术方案专家。擅长把零散要点整理成规范、响应招标文件的技术叙述，语言正式、条理清晰，突出合规性与可实施性。"
     }
-  ]
+  ],
+  "fetched_at": 1782637663.5916975,
+  "source_url": "https://raw.githubusercontent.com/zezeqq/-agent/main/config/catalog.json"
 }
