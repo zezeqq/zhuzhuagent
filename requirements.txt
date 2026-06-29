@@ -9,6 +9,9 @@ python-pptx>=0.6.23
 pyautogui>=0.9.54
 mcp>=1.2.0
 
+# RAG 语义向量（推荐；未安装时自动降级为 API 或词袋兜底）
+fastembed>=0.4.0
+
 # 本地 UI 定位（可选，装后 GUI 操作更快）
 uiautomation>=2.0.18
 rapidocr-onnxruntime>=1.3.0

@@ -19,7 +19,7 @@ from core.conversation_manager import (
 from db.database import query_all
 from ui.i18n import t
 from ui.widgets.message_widget import (
-    AgentMessage, ArtifactMessage, FollowUpActionMessage, PermissionRequestMessage,
+    AgentMessage, ArtifactMessage, FollowUpActionMessage, GuideMessage, PermissionRequestMessage,
     PlanMessage, StepProgressMessage, ToolCallMessage, ToolCallsGroup, UserMessage,
     WelcomeWidget, _qobject_alive,
 )
@@ -27,6 +27,7 @@ from ui.widgets.mode_selector import ModeSelector
 from ui.widgets.chat_input import ChatInputEdit, format_mention_for_display
 from ui.widgets.file_reference_popup import FileReferencePopup
 from ui.widgets.reference_strip import ReferenceStrip
+from ui.widgets.send_menu_button import SendMenuButton
 from ui.workers import AgentWorker, ExpertTeamWorker, VoiceTranscribeWorker
 
 
@@ -44,6 +45,9 @@ _EXECUTION_CONTINUE_CUES = (
     "是否开始执行", "开始执行吗", "现在执行吗", "是否按此计划", "按此计划执行",
     "是否执行", "执行吗", "要继续吗", "继续吗", "下一步",
 )
+
+
+_GUIDE_PREFIX = "💡 引导 · "
 
 
 def _looks_like_follow_up_prompt(text: str) -> bool:
@@ -393,12 +397,9 @@ class ConversationPanel(QFrame):
         self._voice_btn.clicked.connect(self._toggle_voice_input)
         action_layout.addWidget(self._voice_btn)
 
-        self._send_btn = QPushButton("↑")
-        self._send_btn.setObjectName("SendButton")
-        self._send_btn.setToolTip("发送 (Enter)")
-        self._send_btn.setCursor(Qt.PointingHandCursor)
-        self._send_btn.setFixedSize(48, 48)
-        self._send_btn.clicked.connect(self.send)
+        self._send_btn = SendMenuButton()
+        self._send_btn.send_normal.connect(lambda: self._send_as_normal(interrupt=True))
+        self._send_btn.send_guide.connect(self._send_as_guide)
         action_layout.addWidget(self._send_btn)
         controls.addWidget(action_group, 0, Qt.AlignRight)
 
@@ -443,21 +444,22 @@ class ConversationPanel(QFrame):
                 ctrl = bool(event.modifiers() & Qt.ControlModifier)
                 if send_key_is_ctrl_enter():
                     if ctrl:
-                        self.send()
+                        self._on_enter_send()
                         return True
                 else:
                     if not ctrl:
-                        self.send()
+                        self._on_enter_send()
                         return True
         return super().eventFilter(obj, event)
 
     def apply_send_key_setting(self) -> None:
         from core.settings_runtime import send_key_is_ctrl_enter
 
-        if send_key_is_ctrl_enter():
-            self._send_btn.setToolTip(t("send_ctrl_enter"))
+        if not self._running_worker():
+            tip = t("send_ctrl_enter") if send_key_is_ctrl_enter() else t("send_enter")
+            self._send_btn.setToolTip(tip)
         else:
-            self._send_btn.setToolTip(t("send_enter"))
+            self._send_btn.set_busy(True)
 
     def retranslate_ui(self) -> None:
         if hasattr(self, "_model_label"):
@@ -615,7 +617,10 @@ class ConversationPanel(QFrame):
             role = msg.get("role", "user")
             content = msg.get("content", "")
             if role == "user":
-                self._add_widget(UserMessage(content))
+                if content.startswith(_GUIDE_PREFIX):
+                    self._add_widget(GuideMessage(content[len(_GUIDE_PREFIX):]))
+                else:
+                    self._add_widget(UserMessage(content))
                 i += 1
             elif role == "assistant":
                 self._add_widget(AgentMessage(content))
@@ -685,6 +690,7 @@ class ConversationPanel(QFrame):
         worker.final_reply.connect(lambda reply, w=worker: self._handle_final_reply(reply, w))
         worker.error.connect(lambda err, w=worker: self._handle_error(err, w))
         worker.need_permission.connect(lambda req, w=worker: self._handle_permission(req, w))
+        worker.guidance_applied.connect(lambda note, w=worker: self._handle_guidance_applied(note, w))
         worker.finished.connect(lambda w=worker: self._handle_worker_finished(w))
         worker._dna_connected = True
 
@@ -926,9 +932,62 @@ class ConversationPanel(QFrame):
         self._welcome.setVisible(True)
 
     def send(self) -> None:
+        """兼容旧调用：运行中默认引导，否则正常发送。"""
+        self._on_enter_send()
+
+    def _on_enter_send(self) -> None:
+        if self._running_worker():
+            self._send_as_guide()
+        else:
+            self._send_as_normal(interrupt=True)
+
+    def _running_worker(self) -> AgentWorker | None:
+        conv_id = self._conversation_id
+        if self._worker and self._worker.isRunning():
+            return self._worker
+        if conv_id and conv_id in self._background_workers:
+            worker = self._background_workers[conv_id]
+            if worker.isRunning():
+                return worker
+        return None
+
+    def _send_as_normal(self, *, interrupt: bool = True) -> None:
         text = self._input.toPlainText().strip()
         if not text:
             return
+        if interrupt:
+            old = self._running_worker()
+            if old and old.isRunning():
+                old.cancel()
+                cid = old.conversation_id
+                if cid:
+                    self._background_workers.pop(cid, None)
+                    self._run_tool_counts.pop(cid, None)
+                if old is self._worker:
+                    self._detach_worker_ui()
+        self._commit_user_message(text, run_agent=True)
+
+    def _send_as_guide(self) -> None:
+        text = self._input.toPlainText().strip()
+        if not text:
+            return
+        worker = self._running_worker()
+        if not worker or not worker.isRunning():
+            self._send_as_normal(interrupt=True)
+            return
+        display = self._commit_user_message(text, run_agent=False, as_guide=True)
+        if worker.submit_guidance(text):
+            self._show_status(t("guidance_applied"))
+        else:
+            self._show_status(t("guidance_failed"))
+
+    def _commit_user_message(
+        self,
+        text: str,
+        *,
+        run_agent: bool,
+        as_guide: bool = False,
+    ) -> str:
         if not self._conversation_id:
             project = current_project()
             mode = self._mode.current_mode()
@@ -952,14 +1011,24 @@ class ConversationPanel(QFrame):
             file_names = [Path(f).name for f in attachments]
             display_text += "\n🖼 " + ", ".join(file_names)
 
-        add_message(self._conversation_id, "user", display_text, project_id=project["id"] if project else None)
+        stored_text = f"{_GUIDE_PREFIX}{display_text}" if as_guide else display_text
+        add_message(
+            self._conversation_id, "user", stored_text,
+            project_id=project["id"] if project else None,
+        )
         self._last_user_text = text
-        self._add_widget(UserMessage(display_text))
+        if as_guide:
+            self._add_widget(GuideMessage(display_text))
+        else:
+            self._add_widget(UserMessage(display_text))
         self._input.clear()
         self._attach_strip.clear_all()
         self._ref_strip.clear_all()
         self._hide_reference_popup()
         self._scroll_to_bottom()
+
+        if not run_agent:
+            return stored_text
 
         mode = self._mode.current_mode()
         model_data = self._model_combo.currentData()
@@ -972,6 +1041,11 @@ class ConversationPanel(QFrame):
             referenced_files=referenced,
             local_search_only=local_only,
         )
+        return stored_text
+
+    def _handle_guidance_applied(self, note: str, worker: AgentWorker) -> None:
+        if not self._is_viewing(worker.conversation_id) or worker is not self._worker:
+            return
 
     def _send_continue_text(self, text: str) -> None:
         """Send a canned user reply and continue the agent (for inline action buttons)."""
@@ -1247,11 +1321,16 @@ class ConversationPanel(QFrame):
         ))
 
     def _set_busy(self, busy: bool) -> None:
-        self._send_btn.setEnabled(not busy)
+        self._send_btn.set_busy(busy)
         self._stop_btn.setVisible(busy)
-        self._input.setReadOnly(busy)
+        # 生成过程中仍允许编辑输入框，方便用户预先写下一条消息或发送引导
+        self._input.setReadOnly(False)
+        self._input.setProperty("generating", "true" if busy else "false")
+        self._repolish(self._input)
         if hasattr(self, "_voice_btn"):
             self._voice_btn.setEnabled(not busy or self._is_recording_voice)
+        if not busy:
+            self.apply_send_key_setting()
 
     def _stop_generation(self) -> None:
         if self._worker and self._worker.isRunning():

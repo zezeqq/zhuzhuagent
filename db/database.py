@@ -49,6 +49,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     chunk_cols = {row["name"] for row in conn.execute("PRAGMA table_info(file_chunks)").fetchall()}
     if "embedding_json" not in chunk_cols:
         conn.execute("ALTER TABLE file_chunks ADD COLUMN embedding_json TEXT")
+    if "embedding_model" not in chunk_cols:
+        conn.execute("ALTER TABLE file_chunks ADD COLUMN embedding_model TEXT")
 
 
 def execute(sql: str, params: tuple | list = ()) -> int:

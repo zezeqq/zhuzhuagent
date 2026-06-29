@@ -608,11 +608,17 @@ TOOL_RISK_LEVELS: dict[str, str] = {
 }
 
 
+GUI_TOOL_NAMES = frozenset({
+    "keyboard_type", "mouse_click", "ui_click", "ui_locate", "window_focus",
+    "screen_capture", "hotkey_press", "list_apps",
+})
+
+
 def get_active_tools() -> list[dict]:
     """Return the merged list of built-in + installed tools, excluding disabled ones."""
     import json
 
-    from core.settings_runtime import plugins_disabled
+    from core.settings_runtime import gui_automation_enabled, plugins_disabled
     from db.database import query_all
     from core.settings_store import get_setting
 
@@ -669,6 +675,12 @@ def get_active_tools() -> list[dict]:
             t_name = tool.get("function", {}).get("name", "")
             if t_name and t_name not in disabled_set:
                 active.append(tool)
+
+    if not gui_automation_enabled():
+        active = [
+            t for t in active
+            if t.get("function", {}).get("name", "") not in GUI_TOOL_NAMES
+        ]
 
     return active
 

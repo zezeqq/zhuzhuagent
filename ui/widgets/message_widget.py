@@ -37,6 +37,21 @@ class UserMessage(QFrame):
         layout.addWidget(label)
 
 
+class GuideMessage(QFrame):
+    """用户在中途注入的引导，不打断当前任务。"""
+
+    def __init__(self, text: str, parent=None):
+        super().__init__(parent)
+        self.setObjectName("GuideMessage")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 10, 16, 10)
+        label = QLabel(f"💡 引导 · {text}")
+        label.setWordWrap(True)
+        label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        label.setObjectName("GuideMessageText")
+        layout.addWidget(label)
+
+
 class AgentMessage(QFrame):
     regenerate_requested = Signal()
 
@@ -811,7 +826,7 @@ class WelcomeWidget(QWidget):
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
-        subtitle = QLabel("一个会规划、会执行、会交付文件的本地 Agent 工作台")
+        subtitle = QLabel("查资料 · 写文档 · 生成 Word/PPT/Excel · 可交付文件")
         subtitle.setObjectName("WelcomeSubtitle")
         subtitle.setAlignment(Qt.AlignCenter)
         layout.addWidget(subtitle)

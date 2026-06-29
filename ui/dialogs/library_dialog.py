@@ -12,6 +12,7 @@ from core.file_manager import import_file, list_library_files
 from core.agent_context import current_project
 from db.database import execute
 from rag.indexer import index_file, reindex_all_files
+from rag.embedding_provider import embedding_status
 
 
 class LibraryDialog(QDialog):
@@ -27,10 +28,16 @@ class LibraryDialog(QDialog):
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(12)
 
-        hint = QLabel("导入 PDF、Word、Markdown 等文档后自动分块并建立向量索引。Agent 对话时会检索当前项目与全局资料库（不限于「本地检索」模式）。")
+        hint = QLabel("导入 PDF、Word、Markdown 等文档后自动分块并建立语义向量索引（bge-small-zh / API / 关键词兜底）。Agent 对话时会检索当前项目与全局资料库。")
         hint.setObjectName("MutedLabel")
         hint.setWordWrap(True)
         layout.addWidget(hint)
+
+        self._backend_label = QLabel()
+        self._backend_label.setObjectName("MutedLabel")
+        self._backend_label.setWordWrap(True)
+        layout.addWidget(self._backend_label)
+        self._refresh_backend_label()
 
         toolbar = QHBoxLayout()
         import_btn = QPushButton("导入文件…")
@@ -83,6 +90,21 @@ class LibraryDialog(QDialog):
             item.setToolTip(row.get("file_path", ""))
             self._list.addItem(item)
 
+    def _refresh_backend_label(self) -> None:
+        st = embedding_status()
+        backend = st.get("backend", "sparse")
+        labels = {
+            "local": f"当前向量引擎：本地语义模型（{st.get('local_model', '')}）",
+            "ollama": f"当前向量引擎：Ollama（{st.get('ollama_model', '')}）",
+            "api": f"当前向量引擎：Embedding API（{st.get('api_model', '')}）",
+            "sparse": (
+                "当前向量引擎：词袋兜底。"
+                " 启用语义检索：pip install fastembed，或运行 Ollama 并 ollama pull nomic-embed-text，"
+                "或在设置中配置 rag_embedding_api_base/key 后重建索引。"
+            ),
+        }
+        self._backend_label.setText(labels.get(backend, labels["sparse"]))
+
     def _import_files(self) -> None:
         paths, _ = QFileDialog.getOpenFileNames(
             self,
@@ -102,6 +124,7 @@ class LibraryDialog(QDialog):
             except Exception as exc:
                 errors.append(f"{Path(path).name}: {exc}")
         self._refresh_list()
+        self._refresh_backend_label()
         if errors:
             QMessageBox.warning(self, "部分导入失败", "\n".join(errors[:8]))
         elif paths:
@@ -110,7 +133,14 @@ class LibraryDialog(QDialog):
     def _reindex_all(self) -> None:
         try:
             count = reindex_all_files()
-            QMessageBox.information(self, "重建完成", f"已重建 {count} 个文件的向量索引。")
+            self._refresh_backend_label()
+            st = embedding_status()
+            backend = st.get("backend", "sparse")
+            QMessageBox.information(
+                self,
+                "重建完成",
+                f"已重建 {count} 个文件的向量索引。\n当前引擎：{backend}",
+            )
         except Exception as exc:
             QMessageBox.warning(self, "重建失败", str(exc))
 

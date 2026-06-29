@@ -69,9 +69,7 @@ python main.py
 
 ## Git 上传
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/git_push.ps1 -Message "fix: your change" -UserName "zezeqq" -UserEmail "1432450835@qq.com"
-```
+双击 `scripts/git_sync.bat`，按菜单选择上传到新旧仓库，或用 GitHub 覆盖本地。详见 `scripts/GIT使用说明.md`。
 
 ## 安全说明
 

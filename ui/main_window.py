@@ -89,7 +89,7 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         if app:
             apply_app_settings(app, self)
-        if changed_key in ("", "disable_all_plugins", "disabled_tools", "enable_mcp", "mcp_config"):
+        if changed_key in ("", "disable_all_plugins", "disabled_tools", "enable_mcp", "mcp_config", "enable_gui_automation"):
             reload_skill_handlers()
             if changed_key in ("enable_mcp", "mcp_config", "disable_all_plugins", ""):
                 import threading

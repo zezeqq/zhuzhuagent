@@ -181,15 +181,8 @@ class Planner:
                 }, "medium")],
             )
 
-        # 7) DEFAULT: Agent LLM handles it intelligently
-        return TaskPlan(
-            title="Agent 智能回答",
-            task_type="agent_answer",
-            user_goal=goal,
-            risk_level="low",
-            expected_artifacts=[],
-            steps=[],
-        )
+        # 7) DEFAULT: 交给 Agent 单步决策（经 Executor 调度）
+        return TaskPlan.agent_execute_plan(goal, title="Agent 智能执行")
 
     @staticmethod
     def _match_software(text: str) -> str | None:
@@ -199,3 +192,137 @@ class Planner:
                     return _resolve_browser()
                 return name
         return None
+
+
+_PLANNER_SYSTEM = """你是 DNA Work Agent 的任务规划器。根据用户目标输出 **唯一一段 JSON**（不要 markdown 代码块），格式：
+
+{
+  "title": "简短任务标题",
+  "task_type": "generate_ppt|generate_word|generate_excel|agent_craft|...",
+  "risk_level": "low|medium|high",
+  "expected_artifacts": ["pptx"],
+  "steps": [
+    {"name": "步骤说明", "tool": "工具名", "input": {}}
+  ]
+}
+
+可用工具（优先用确定性工具，复杂任务才用 agent.execute）：
+- office.ppt.create / office.word.create / office.excel.create — 生成 Office 文件（input 需含完整内容）
+- library_search — 检索资料库，input: {"query": "..."}
+- library_list — 列出资料库
+- software.launch — 启动软件，input: {"software_id": 数字}（仅当明确知道 ID）
+- agent.execute — 开放式/多工具任务，input: {"goal": "本步骤目标描述"}
+
+规则：
+1. 能一步用 office.* + library_search 完成的文档任务，不要拆成 agent.execute
+2. 默认 **不要** 规划 GUI 步骤（ui_click 等）；除非用户明确要求操控软件且已知 GUI 实验功能已开启
+3. 打开软件类请求 → software.launch 或 agent.execute（仅启动，不在 App 内自动化）
+4. steps 至少 1 步，最多 6 步
+5. 只输出 JSON"""
+
+
+def _extract_json_object(text: str) -> dict | None:
+    import json
+
+    raw = (text or "").strip()
+    if not raw:
+        return None
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        raw = "\n".join(lines).strip()
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else None
+    except json.JSONDecodeError:
+        pass
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            data = json.loads(raw[start:end + 1])
+            return data if isinstance(data, dict) else None
+        except json.JSONDecodeError:
+            return None
+    return None
+
+
+def _sanitize_plan_steps(plan: TaskPlan) -> TaskPlan:
+    from agent_runtime.tool_bridge import AGENT_EXECUTE_TOOL, known_plan_tool
+
+    clean: list[TaskStep] = []
+    for step in plan.steps:
+        if known_plan_tool(step.tool):
+            clean.append(step)
+            continue
+        clean.append(TaskStep(
+            name=step.name or "智能执行",
+            tool=AGENT_EXECUTE_TOOL,
+            input={"goal": plan.user_goal, "step_hint": step.name, "original_tool": step.tool},
+            risk_level=step.risk_level,
+        ))
+    if not clean:
+        return TaskPlan.agent_execute_plan(plan.user_goal, title=plan.title)
+    plan.steps = clean
+    return plan
+
+
+def plan_from_confirmed_markdown(goal: str, plan_markdown: str, project: dict | None = None) -> TaskPlan:
+    """Plan 模式用户确认 Markdown 计划后，包装为 Executor 可执行的 TaskPlan。"""
+    title = "执行已确认计划"
+    for line in (plan_markdown or "").splitlines():
+        s = line.strip()
+        if s.startswith("#"):
+            title = s.lstrip("# ").strip() or title
+            break
+    return TaskPlan.agent_execute_plan(
+        goal,
+        plan_context=plan_markdown,
+        title=title,
+    )
+
+
+def plan_with_llm(
+    goal: str,
+    model: dict,
+    project: dict | None = None,
+    *,
+    rule_first: bool = True,
+) -> TaskPlan:
+    """LLM JSON 规划 + 规则兜底。明确意图走规则，其余走 LLM。"""
+    planner = Planner()
+    rule_plan = planner.plan(goal, project)
+
+    structured_types = {
+        "install_skill", "launch_software", "generate_ppt",
+        "generate_excel", "generate_word", "generate_code",
+    }
+    if rule_first and rule_plan.task_type in structured_types and rule_plan.steps:
+        return rule_plan
+
+    from core.model_client import ModelClient, ModelClientError
+
+    project_name = (project or {}).get("project_name") or "未选择"
+    user_msg = f"当前项目：{project_name}\n\n用户目标：\n{goal}"
+    try:
+        raw = ModelClient().chat(
+            [
+                {"role": "system", "content": _PLANNER_SYSTEM},
+                {"role": "user", "content": user_msg},
+            ],
+            model,
+            temperature=0.2,
+            max_tokens=1800,
+        )
+        data = _extract_json_object(raw)
+        if data:
+            llm_plan = TaskPlan.from_dict(data, user_goal=goal)
+            if llm_plan.steps:
+                return _sanitize_plan_steps(llm_plan)
+    except ModelClientError:
+        pass
+
+    return _sanitize_plan_steps(rule_plan)

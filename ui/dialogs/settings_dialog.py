@@ -1342,7 +1342,16 @@ class SettingsDialog(QDialog):
         app_launch.setChecked(get_bool("allow_app_launch", True))
         app_launch.toggled.connect(lambda v: self._save_bool("allow_app_launch", v))
         layout.addWidget(_setting_row(
-            "应用启动权限", "允许启动本地程序（微信、酷狗、Office 等）", app_launch
+            "应用启动权限", "允许启动本地程序（仅打开窗口，不含自动点击）", app_launch
+        ))
+
+        gui_auto = _ToggleSwitch()
+        gui_auto.setChecked(get_bool("enable_gui_automation", False))
+        gui_auto.toggled.connect(lambda v: self._save_bool("enable_gui_automation", v))
+        layout.addWidget(_setting_row(
+            "GUI 自动化（实验性）",
+            "允许 ui_click、键盘模拟等操控桌面软件。默认关闭；推荐优先使用文档生成与资料库检索",
+            gui_auto,
         ))
 
         confirm_danger = _ToggleSwitch()

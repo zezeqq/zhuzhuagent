@@ -1423,10 +1423,10 @@ QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
 }
 
 #InputActionGroup {
-    min-width: 122px;
-    max-width: 122px;
+    min-width: 250px;
+    max-width: 280px;
     min-height: 38px;
-    max-height: 38px;
+    max-height: 50px;
 }
 
 /* ================================================================
@@ -1571,6 +1571,11 @@ QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
     border: none;
 }
 
+#InputComposer #ChatInput[generating="true"] {
+    border-left: 2px solid @BLUE;
+    padding-left: 6px;
+}
+
 #InputControlsStrip {
     background: transparent;
     border: none;
@@ -1601,8 +1606,8 @@ QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
 }
 
 #InputActionGroup {
-    min-width: 180px;
-    max-width: 180px;
+    min-width: 250px;
+    max-width: 280px;
     min-height: 50px;
     max-height: 50px;
     background: transparent;
@@ -1674,4 +1679,43 @@ QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
     color: @TEXT;
     background-color: @HOVER;
     border-color: @BORDER;
+}
+
+#SendButton[busy="true"] {
+    background-color: @BLUE;
+    color: #FFFFFF;
+}
+
+#SendHoverMenu {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: 10px;
+    padding: 4px 0;
+}
+
+#SendHoverMenu::item {
+    padding: 8px 16px;
+    color: @TEXT;
+}
+
+#SendHoverMenu::item:selected {
+    background-color: @HOVER;
+}
+
+#SendHoverMenu::item:disabled {
+    color: @MUTED;
+}
+
+#GuideMessage {
+    background-color: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.28);
+    border-radius: 14px;
+    margin-left: 48px;
+    margin-right: 8px;
+}
+
+#GuideMessageText {
+    color: @TEXT;
+    font-size: 13px;
+    line-height: 1.45;
 }

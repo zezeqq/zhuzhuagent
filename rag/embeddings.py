@@ -1,51 +1,57 @@
-"""轻量本地向量：词袋 + TF 权重，无额外依赖。"""
+"""RAG 向量工具：对外统一接口，内部委托 embedding_provider。"""
 
 from __future__ import annotations
 
 import json
-import math
-import re
-from collections import Counter
+
+from rag.embedding_provider import (
+    active_embedding_backend,
+    cosine_similarity_dense,
+    cosine_similarity_sparse,
+    embed_query,
+    embed_texts_batch,
+    embedding_status,
+    legacy_sparse_embed,
+    parse_embedding_json,
+    similarity,
+)
+
+__all__ = [
+    "active_embedding_backend",
+    "cosine_similarity",
+    "embed_from_json",
+    "embed_query_vector",
+    "embed_text",
+    "embed_texts_batch",
+    "embed_to_json",
+    "embedding_status",
+    "legacy_sparse_embed",
+    "parse_embedding_json",
+]
 
 
-_TOKEN_RE = re.compile(r"[\u4e00-\u9fff]|[a-zA-Z0-9_]+")
+def embed_text(text: str):
+    _fmt, vec, _model = embed_query(text)
+    return vec
 
 
-def tokenize(text: str) -> list[str]:
-    return _TOKEN_RE.findall((text or "").lower())
-
-
-def embed_text(text: str) -> dict[str, float]:
-    tokens = tokenize(text)
-    if not tokens:
-        return {}
-    counts = Counter(tokens)
-    total = float(sum(counts.values()))
-    return {t: c / total for t, c in counts.items()}
+def embed_query_vector(text: str):
+    return embed_query(text)
 
 
 def embed_to_json(text: str) -> str:
-    return json.dumps(embed_text(text), ensure_ascii=False)
+    batch = embed_texts_batch([text])
+    return batch[0] if batch else json.dumps({"format": "sparse", "model": "legacy-tf", "vector": {}})
 
 
-def embed_from_json(raw: str | None) -> dict[str, float]:
-    if not raw:
-        return {}
-    try:
-        data = json.loads(raw)
-        if isinstance(data, dict):
-            return {str(k): float(v) for k, v in data.items()}
-    except (json.JSONDecodeError, TypeError, ValueError):
-        pass
-    return {}
+def embed_from_json(raw: str | None):
+    _fmt, vec, _model = parse_embedding_json(raw)
+    return vec
 
 
-def cosine_similarity(a: dict[str, float], b: dict[str, float]) -> float:
-    if not a or not b:
-        return 0.0
-    dot = sum(a.get(k, 0.0) * b.get(k, 0.0) for k in a)
-    na = math.sqrt(sum(v * v for v in a.values()))
-    nb = math.sqrt(sum(v * v for v in b.values()))
-    if na == 0 or nb == 0:
-        return 0.0
-    return dot / (na * nb)
+def cosine_similarity(a, b) -> float:
+    if isinstance(a, list) and isinstance(b, list):
+        return cosine_similarity_dense(a, b)
+    if isinstance(a, dict) and isinstance(b, dict):
+        return cosine_similarity_sparse(a, b)
+    return 0.0

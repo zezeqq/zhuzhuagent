@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import queue
 import threading
 
 from PySide6.QtCore import QThread, Signal
@@ -18,6 +19,7 @@ class AgentWorker(QThread):
     final_reply = Signal(str)
     error = Signal(str)
     need_permission = Signal(dict)
+    guidance_applied = Signal(str)
 
     def __init__(
         self,
@@ -57,10 +59,30 @@ class AgentWorker(QThread):
         self._perm_event = threading.Event()
         self._perm_granted = False
         self._approve_all_remaining = bool(auto_approve or full_access)
+        self._guidance_queue: queue.Queue[str] = queue.Queue()
 
     def cancel(self):
         self._cancelled = True
         self._perm_event.set()
+
+    def submit_guidance(self, text: str) -> bool:
+        """Inject mid-run user guidance without cancelling the worker."""
+        if self._cancelled or not self.isRunning():
+            return False
+        cleaned = (text or "").strip()
+        if not cleaned:
+            return False
+        self._guidance_queue.put(cleaned)
+        return True
+
+    def _drain_guidance(self) -> list[str]:
+        items: list[str] = []
+        while True:
+            try:
+                items.append(self._guidance_queue.get_nowait())
+            except queue.Empty:
+                break
+        return items
 
     def submit_permission(self, granted: bool, *, approve_all: bool = False) -> None:
         if approve_all:
@@ -84,6 +106,7 @@ class AgentWorker(QThread):
         try:
             agent = Agent()
             perm_fn = None if self.full_access else self._request_permission
+            guidance_poll = self._drain_guidance
             for event in agent.run(
                 self.text,
                 model=self.model,
@@ -100,6 +123,7 @@ class AgentWorker(QThread):
                 plan_context=self.plan_context,
                 conversation_id=self.conversation_id,
                 active_skill_package=self.active_skill_package,
+                guidance_poll=guidance_poll,
             ):
                 if self._cancelled:
                     self.final_reply.emit("已取消执行。")
@@ -120,6 +144,8 @@ class AgentWorker(QThread):
                     self.final_reply.emit(event["content"])
                 elif event_type == "error":
                     self.error.emit(event["content"])
+                elif event_type == "guidance":
+                    self.guidance_applied.emit(event.get("content", ""))
         except Exception as exc:
             if not self._cancelled:
                 self.error.emit(str(exc))

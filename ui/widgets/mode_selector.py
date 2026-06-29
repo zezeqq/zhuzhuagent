@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QComboBox
 MODE_OPTIONS: list[tuple[str, str, str]] = [
     ("ask", "Ask", "Chat only — no tools"),
     ("plan", "Plan", "Draft a plan first; confirm before running tools"),
-    ("craft", "Craft", "Agent mode — run tools and execute tasks directly"),
+    ("craft", "Craft", "Generate docs & search library — file automation first"),
 ]
 
 _MODE_KEYS = {key for key, _, _ in MODE_OPTIONS}

@@ -24,10 +24,6 @@ NETWORK_TOOLS = frozenset({"open_url", "skill_install", "image_analyze"})
 MCP_TOOL_PREFIX = "mcp__"
 EXEC_TOOLS = frozenset({"shell_run"})  # 仅 shell 受「命令执行」限制；software_launch 是启动本地应用
 APP_LAUNCH_TOOLS = frozenset({"software_launch", "find_application"})
-GUI_TOOLS = frozenset({
-    "keyboard_type", "mouse_click", "ui_click", "ui_locate", "window_focus",
-    "screen_capture", "hotkey_press",
-})
 
 _FONT_SIZES = {"小": 9, "默认": 11, "大": 13}
 
@@ -49,8 +45,24 @@ def plugins_disabled() -> bool:
     return get_bool("disable_all_plugins", False)
 
 
+GUI_TOOLS = frozenset({
+    "keyboard_type", "mouse_click", "ui_click", "ui_locate", "window_focus",
+    "screen_capture", "hotkey_press", "list_apps",
+})
+
+
+def gui_automation_enabled() -> bool:
+    return get_bool("enable_gui_automation", False)
+
+
 def is_tool_allowed(tool_name: str) -> str | None:
     """Return error message if blocked, else None."""
+    if tool_name in GUI_TOOLS and not gui_automation_enabled():
+        return (
+            "错误：GUI 自动化（实验性）未开启。"
+            "请在 设置 → 安全中心 开启「GUI 自动化（实验性）」，"
+            "或改用 office_* / library_search 等文件级工具完成任务。"
+        )
     if tool_name.startswith(MCP_TOOL_PREFIX):
         if not get_bool("enable_mcp", True):
             return "错误：MCP 工具已在设置 → 安全中心关闭。"
@@ -111,6 +123,13 @@ def build_agent_settings_suffix() -> str:
         parts.append("\n\n回复时请**详细**说明步骤、原因与结果，便于用户理解。")
     else:
         parts.append("\n\n回复尽量**简洁**明了，避免冗长重复。")
+
+    if not gui_automation_enabled():
+        parts.append(
+            "\n\n**GUI 自动化已关闭（默认）**：不要调用 ui_click、keyboard_type、screen_capture 等。"
+            "优先用资料库检索 + 生成 Word/PPT/Excel 交付结果；用户若要操控桌面软件，"
+            "说明可在设置中开启实验性 GUI 能力。"
+        )
 
     return "".join(parts)
 

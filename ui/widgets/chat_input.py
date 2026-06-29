@@ -6,8 +6,10 @@ import tempfile
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal, QPoint
-from PySide6.QtGui import QDragEnterEvent, QDropEvent, QImage, QTextCursor
+from PySide6.QtGui import QDragEnterEvent, QDropEvent, QImage, QTextCharFormat, QTextCursor, QColor
 from PySide6.QtWidgets import QTextEdit
+
+from ui.theme import Palette
 
 
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".ico"}
@@ -34,7 +36,30 @@ class ChatInputEdit(QTextEdit):
         self.setAcceptDrops(True)
         self._ref_active = False
         self._ref_start = -1
+        self._apply_default_text_color()
         self.textChanged.connect(self._on_text_changed)
+
+    def _apply_default_text_color(self) -> None:
+        fmt = QTextCharFormat()
+        fmt.setForeground(QColor(Palette.TEXT))
+        self.setCurrentCharFormat(fmt)
+
+    def focusInEvent(self, event) -> None:
+        super().focusInEvent(event)
+        self._apply_default_text_color()
+
+    def insertFromMimeData(self, source) -> None:
+        """Paste as plain text with theme foreground — avoid dark HTML from clipboard."""
+        if source.hasText():
+            self.textCursor().insertText(source.text(), self._plain_char_format())
+            return
+        super().insertFromMimeData(source)
+
+    @staticmethod
+    def _plain_char_format() -> QTextCharFormat:
+        fmt = QTextCharFormat()
+        fmt.setForeground(QColor(Palette.TEXT))
+        return fmt
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         if event.mimeData().hasUrls():
@@ -153,6 +178,7 @@ class ChatInputEdit(QTextEdit):
         cursor.setPosition(cursor_pos)
         self.setTextCursor(cursor)
         self.blockSignals(False)
+        self._apply_default_text_color()
         self._cancel_reference_mode()
 
     def trigger_reference_picker(self) -> None:
