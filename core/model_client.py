@@ -215,13 +215,25 @@ class ModelClient:
 
     @staticmethod
     def _payload(messages, model_name, model_config, temperature, max_tokens, stream) -> dict:
-        payload = {
+        from core.model_profiles import is_deepseek_v4
+
+        cfg = model_config or {}
+        payload: dict = {
             "model": model_name,
             "messages": messages,
-            "temperature": ModelClient._resolve_temperature(model_name, temperature, model_config),
             "stream": stream,
         }
-        resolved_max = max_tokens if max_tokens is not None else model_config.get("max_tokens")
+        if is_deepseek_v4(cfg):
+            if cfg.get("thinking_enabled", 1):
+                payload["thinking"] = {"type": "enabled"}
+            effort = (cfg.get("reasoning_effort") or "max").strip()
+            if effort:
+                payload["reasoning_effort"] = effort
+        else:
+            payload["temperature"] = ModelClient._resolve_temperature(
+                model_name, temperature, model_config,
+            )
+        resolved_max = max_tokens if max_tokens is not None else cfg.get("max_tokens")
         if resolved_max and int(resolved_max) > 0:
             payload["max_tokens"] = int(resolved_max)
         return payload

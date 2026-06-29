@@ -17,6 +17,10 @@ from utils.file_actions import exec_file_context_menu, open_file_path, reveal_in
 from utils.path_utils import exports_dir
 from ui.widgets.batch_action_bar import BatchActionBar
 
+_FILE_PATH_ROLE = Qt.UserRole
+_FILE_LOADED_ROLE = Qt.UserRole + 1
+_FILE_IGNORED = frozenset({".git", ".idea", ".venv", "venv", "__pycache__", "node_modules"})
+
 
 class _FileTabBar(QFrame):
     """Horizontal bar of recently-clicked file tabs."""
@@ -168,6 +172,7 @@ class ResultPanel(QFrame):
         self._task_id: int | None = None
         self._conversation_id: int | None = None
         self._workspace: str = ""
+        self._files_stale = True
         self._artifact_cards: list[_ArtifactCard] = []
         self._artifact_multi_mode = False
         self._current_preview_path: str = ""
@@ -227,7 +232,8 @@ class ResultPanel(QFrame):
         if key == "artifacts":
             self.refresh_artifacts()
         elif key == "files":
-            self.refresh_files()
+            if self._files_stale or self._file_tree.topLevelItemCount() == 0:
+                self.refresh_files()
         elif key == "changes":
             self._refresh_changes()
 
@@ -237,12 +243,14 @@ class ResultPanel(QFrame):
     def refresh_file_views(self) -> None:
         """Agent 产生/修改文件后刷新产物、文件树与变更记录。"""
         self.refresh_artifacts()
-        self.refresh_files()
+        self._files_stale = True
+        if self._current_tab == "files":
+            self.refresh_files()
         self._refresh_changes()
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
-        self.refresh_file_views()
+        self._refresh_tab(self._current_tab)
 
     def _build_artifacts_tab(self) -> QWidget:
         page = QWidget()
@@ -323,6 +331,7 @@ class ResultPanel(QFrame):
         self._file_tree.itemSelectionChanged.connect(self._update_file_batch_bar)
         self._file_tree.itemDoubleClicked.connect(self._open_file)
         self._file_tree.itemClicked.connect(self._on_file_tree_clicked)
+        self._file_tree.itemExpanded.connect(self._on_file_tree_expanded)
         self._file_tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self._file_tree.customContextMenuRequested.connect(self._on_file_tree_context_menu)
         layout.addWidget(self._file_tree, 1)
@@ -582,7 +591,7 @@ class ResultPanel(QFrame):
 
     # -- files -----------------------------------------------------------------
 
-    def set_workspace(self, path: str) -> None:
+    def set_workspace(self, path: str, *, refresh: bool = True) -> None:
         from ui.i18n import t
 
         self._workspace = path or ""
@@ -590,9 +599,12 @@ class ResultPanel(QFrame):
             self._workspace_label.setText(path)
         else:
             self._workspace_label.setText(t("workspace_unset"))
-        self.refresh_files()
+        self._files_stale = True
+        if refresh:
+            self.refresh_files()
 
     def refresh_files(self) -> None:
+        self._files_stale = False
         self._file_tree.clear()
         if not self._workspace or not Path(self._workspace).exists():
             from core.settings_runtime import get_workspace_path
@@ -608,31 +620,41 @@ class ResultPanel(QFrame):
                 else:
                     return
         root = Path(self._workspace)
-        ignored = {".git", ".idea", ".venv", "venv", "__pycache__", "node_modules"}
         try:
             for item in sorted(root.iterdir()):
-                if item.name in ignored:
+                if item.name in _FILE_IGNORED:
                     continue
-                tree_item = QTreeWidgetItem([item.name, self._format_size(item) if item.is_file() else ""])
-                tree_item.setData(0, Qt.UserRole, str(item))
-                if item.is_dir():
-                    self._add_tree_children(tree_item, item, ignored, depth=0)
+                tree_item = self._make_file_tree_item(item)
                 self._file_tree.addTopLevelItem(tree_item)
         except PermissionError:
             pass
 
-    def _add_tree_children(self, parent: QTreeWidgetItem, path: Path, ignored: set, depth: int) -> None:
-        if depth > 3:
+    def _make_file_tree_item(self, path: Path) -> QTreeWidgetItem:
+        tree_item = QTreeWidgetItem([path.name, self._format_size(path) if path.is_file() else ""])
+        tree_item.setData(0, _FILE_PATH_ROLE, str(path))
+        if path.is_dir():
+            tree_item.setChildIndicatorPolicy(QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
+            tree_item.setData(0, _FILE_LOADED_ROLE, False)
+        return tree_item
+
+    def _on_file_tree_expanded(self, item: QTreeWidgetItem) -> None:
+        if item.data(0, _FILE_LOADED_ROLE):
             return
+        path_str = item.data(0, _FILE_PATH_ROLE)
+        if not path_str:
+            return
+        path = Path(path_str)
+        if not path.is_dir():
+            return
+        item.setData(0, _FILE_LOADED_ROLE, True)
+        self._populate_tree_children(item, path)
+
+    def _populate_tree_children(self, parent: QTreeWidgetItem, path: Path) -> None:
         try:
             for item in sorted(path.iterdir()):
-                if item.name in ignored:
+                if item.name in _FILE_IGNORED:
                     continue
-                child = QTreeWidgetItem([item.name, self._format_size(item) if item.is_file() else ""])
-                child.setData(0, Qt.UserRole, str(item))
-                if item.is_dir():
-                    self._add_tree_children(child, item, ignored, depth + 1)
-                parent.addChild(child)
+                parent.addChild(self._make_file_tree_item(item))
         except PermissionError:
             pass
 
@@ -649,7 +671,7 @@ class ResultPanel(QFrame):
         return f"{size / 1024 / 1024:.1f} MB"
 
     def _open_file(self, item: QTreeWidgetItem, column: int) -> None:
-        path = item.data(0, Qt.UserRole)
+        path = item.data(0, _FILE_PATH_ROLE)
         if path and Path(path).is_file():
             self._open_file_path(path, self)
 
@@ -666,7 +688,7 @@ class ResultPanel(QFrame):
     def _selected_file_paths(self) -> list[str]:
         paths: list[str] = []
         for item in self._file_tree.selectedItems():
-            path_str = item.data(0, Qt.UserRole)
+            path_str = item.data(0, _FILE_PATH_ROLE)
             if path_str and Path(path_str).is_file():
                 paths.append(path_str)
         return paths
@@ -677,7 +699,7 @@ class ResultPanel(QFrame):
     def _file_select_all(self) -> None:
         self._file_tree.clearSelection()
         for item in self._iter_file_tree_items():
-            path_str = item.data(0, Qt.UserRole)
+            path_str = item.data(0, _FILE_PATH_ROLE)
             if path_str and Path(path_str).is_file():
                 item.setSelected(True)
         self._update_file_batch_bar()
@@ -717,7 +739,7 @@ class ResultPanel(QFrame):
         item = self._file_tree.itemAt(pos)
         if not item:
             return
-        path_str = item.data(0, Qt.UserRole)
+        path_str = item.data(0, _FILE_PATH_ROLE)
         if not path_str:
             return
         path = Path(path_str)
@@ -730,7 +752,7 @@ class ResultPanel(QFrame):
         )
 
     def _on_file_tree_clicked(self, item: QTreeWidgetItem, column: int) -> None:
-        path_str = item.data(0, Qt.UserRole)
+        path_str = item.data(0, _FILE_PATH_ROLE)
         if not path_str:
             return
         path = Path(path_str)
@@ -758,7 +780,7 @@ class ResultPanel(QFrame):
         self._switch_tab("preview")
 
     def _preview_file(self, item: QTreeWidgetItem, column: int) -> None:
-        path_str = item.data(0, Qt.UserRole)
+        path_str = item.data(0, _FILE_PATH_ROLE)
         if not path_str:
             return
         path = Path(path_str)

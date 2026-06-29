@@ -25,21 +25,34 @@ def main():
     from utils.path_utils import app_root, data_dir, is_frozen
     logger.info("%s starting (frozen=%s, root=%s, data=%s)", APP_NAME, is_frozen(), app_root(), data_dir())
     init_database()
-    bootstrap_seed_data()
 
-    from core.settings_runtime import apply_app_settings, check_skill_updates_on_startup
-    from core.settings_runtime import reload_skill_handlers
+    from core.settings_runtime import apply_app_settings
     from core.settings_store import get_bool
 
-    reload_skill_handlers()
-    check_skill_updates_on_startup()
+    apply_app_settings(app)
+    window = MainWindow()
+    apply_app_settings(app, window, startup=True, apply_theme=False)
+    window.show()
+
+    import threading
+    from PySide6.QtCore import QTimer
+
+    def _deferred_startup() -> None:
+        try:
+            bootstrap_seed_data()
+            from core.settings_runtime import reload_skill_handlers, check_skill_updates_on_startup
+            reload_skill_handlers()
+            check_skill_updates_on_startup()
+        except Exception as exc:
+            logger.warning("Deferred startup failed: %s", exc)
+
+    threading.Thread(target=_deferred_startup, daemon=True, name="DeferredStartup").start()
 
     if get_bool("enable_mcp", True):
         try:
             import mcp  # noqa: F401
         except ImportError:
             logger.warning("MCP SDK missing in this venv — run: pip install mcp")
-            from PySide6.QtWidgets import QMessageBox
             QMessageBox.warning(
                 None,
                 f"{APP_NAME} — MCP",
@@ -49,17 +62,12 @@ def main():
                 "或：pip install -r requirements.txt",
             )
 
-    window = MainWindow()
-    apply_app_settings(app, window)
-
     from core.automation_scheduler import AutomationScheduler
     scheduler = AutomationScheduler(window)
     scheduler.automation_due.connect(lambda cid, _n, _p: window._on_automation_triggered(cid))
     scheduler.start()
     window._automation_scheduler = scheduler
 
-    import threading
-    from PySide6.QtCore import QTimer
     from agent_runtime.mcp_client import ensure_mcp_tools_loaded, get_mcp_status_summary, mcp_enabled
 
     def _mcp_startup() -> None:
@@ -69,13 +77,17 @@ def main():
         summary = get_mcp_status_summary()
         logger.info("MCP startup: %s | tools=%s connected=%s", msg, summary.get("tool_count"), summary.get("connected"))
 
-    def _schedule_mcp_startup() -> None:
-        threading.Thread(target=_mcp_startup, daemon=True, name="MCPStartup").start()
+    QTimer.singleShot(1200, lambda: threading.Thread(target=_mcp_startup, daemon=True, name="MCPStartup").start())
 
-    # 等主窗口就绪后再连 MCP，避免与 UI 初始化并发抢连
-    QTimer.singleShot(800, _schedule_mcp_startup)
+    def _warm_file_tree() -> None:
+        try:
+            if window._results._files_stale:
+                window._results.refresh_files()
+        except Exception:
+            pass
 
-    window.show()
+    QTimer.singleShot(2500, _warm_file_tree)
+
     sys.exit(app.exec())
 
 

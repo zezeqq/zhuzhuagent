@@ -11,7 +11,8 @@ from PySide6.QtWidgets import (
 )
 
 from core.conversation_manager import (
-    conversation_task_info, delete_conversation, list_conversations, search_conversations,
+    batch_conversation_task_info, conversation_task_info, delete_conversation,
+    list_conversations, search_conversations,
 )
 from core.app_identity import APP_NAME, APP_VERSION
 from core.settings_store import get_setting
@@ -24,7 +25,7 @@ class TaskCard(QFrame):
     delete_requested = Signal(int)
     check_changed = Signal(int, bool)
 
-    def __init__(self, conversation: dict, parent=None):
+    def __init__(self, conversation: dict, task_info: dict | None = None, parent=None):
         super().__init__(parent)
         self.setObjectName("TaskCard")
         self.setCursor(Qt.PointingHandCursor)
@@ -62,7 +63,9 @@ class TaskCard(QFrame):
             col.addWidget(time_label)
         layout.addLayout(col, 1)
 
-        info = conversation_task_info(self.conv_id)
+        info = task_info
+        if info is None:
+            info = conversation_task_info(self.conv_id)
         if info:
             status = info.get("status", "")
             badge_map = {"completed": "✓", "running": "◉", "failed": "✕"}
@@ -437,6 +440,7 @@ class TaskSidebar(QFrame):
     def refresh(self) -> None:
         keyword = self._search.text().strip() if self._search_wrapper.isVisible() else ""
         conversations = search_conversations(keyword) if keyword else list_conversations()
+        task_map = batch_conversation_task_info([c["id"] for c in conversations])
 
         self._cards.clear()
         while self._list_layout.count() > 1:
@@ -445,7 +449,7 @@ class TaskSidebar(QFrame):
                 item.widget().deleteLater()
 
         for conv in conversations:
-            card = TaskCard(conv)
+            card = TaskCard(conv, task_info=task_map.get(conv["id"]))
             card.set_multi_select_mode(self._multi_select_mode)
             card.clicked.connect(self._on_card_clicked)
             card.delete_requested.connect(self._on_delete)

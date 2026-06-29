@@ -83,3 +83,22 @@ def conversation_task_info(conversation_id: int) -> dict | None:
         "SELECT id, status, task_type FROM tasks WHERE conversation_id=? ORDER BY id DESC LIMIT 1",
         (conversation_id,),
     )
+
+
+def batch_conversation_task_info(conversation_ids: list[int]) -> dict[int, dict]:
+    """一次查询多会话的任务状态，避免侧边栏 N+1。"""
+    ids = [int(i) for i in conversation_ids if i]
+    if not ids:
+        return {}
+    placeholders = ",".join("?" * len(ids))
+    rows = query_all(
+        f"SELECT conversation_id, id, status, task_type FROM tasks "
+        f"WHERE conversation_id IN ({placeholders}) ORDER BY conversation_id, id DESC",
+        ids,
+    )
+    result: dict[int, dict] = {}
+    for row in rows:
+        cid = row.get("conversation_id")
+        if cid is not None and cid not in result:
+            result[int(cid)] = row
+    return result

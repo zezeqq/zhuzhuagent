@@ -1252,6 +1252,18 @@ QFormLayout QLabel {
 }
 #InputIconButton:hover { background: @HOVER; color: @TEXT; border-color: @BLUE; }
 
+#NetworkToggleButton {
+    min-width: 34px; max-width: 34px; min-height: 34px; max-height: 34px;
+    border-radius: 17px; padding: 0; icon-size: 18px;
+}
+#NetworkToggleButton:checked {
+    background: @ACCENT_SOFT; border: 1px solid @BLUE;
+}
+#NetworkToggleButton:!checked {
+    background: @SURFACE; border: 1px solid @BORDER;
+}
+#NetworkToggleButton:hover { background: @HOVER; }
+
 /* ================================================================
    SIDEBAR WORKBUDDY-STYLE NAV
    ================================================================ */

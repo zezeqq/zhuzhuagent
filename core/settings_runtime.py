@@ -20,7 +20,9 @@ FILE_TOOLS = frozenset({
     "file_read", "file_write", "file_list", "file_delete", "code_create",
     "office_word_create", "office_excel_create", "office_ppt_create",
 })
-NETWORK_TOOLS = frozenset({"open_url", "skill_install", "image_analyze"})
+NETWORK_TOOLS = frozenset({
+    "open_url", "web_search", "web_fetch", "skill_install", "image_analyze",
+})
 MCP_TOOL_PREFIX = "mcp__"
 EXEC_TOOLS = frozenset({"shell_run"})  # 仅 shell 受「命令执行」限制；software_launch 是启动本地应用
 APP_LAUNCH_TOOLS = frozenset({"software_launch", "find_application"})
@@ -233,11 +235,17 @@ def check_skill_updates_on_startup() -> None:
         pass
 
 
-def apply_app_settings(app: QApplication, main_window: QMainWindow | None = None) -> None:
+def apply_app_settings(
+    app: QApplication,
+    main_window: QMainWindow | None = None,
+    *,
+    startup: bool = False,
+    apply_theme: bool = True,
+) -> None:
     from PySide6.QtCore import Qt
     from PySide6.QtGui import QFont, QGuiApplication
     from PySide6.QtWidgets import QWidget
-    from ui.theme import apply_theme_palette, load_stylesheet
+    from ui.theme import apply_app_palette, apply_theme_palette, load_stylesheet
 
     theme = get_setting("theme", "深色")
     if theme == "跟随系统":
@@ -248,27 +256,25 @@ def apply_app_settings(app: QApplication, main_window: QMainWindow | None = None
         else:
             theme = "深色"
 
-    apply_theme_palette(theme)
-    qss = load_stylesheet()
-
-    # 必须清空主窗口自身 stylesheet，否则启动时固化的样式会覆盖 app 级更新
-    app.setStyleSheet(qss)
-    if main_window is not None:
-        main_window.setStyleSheet("")
-
     level = get_setting("font_size_level", "默认")
     pt = _FONT_SIZES.get(level, 10)
     font = QFont()
     font.setFamily("Microsoft YaHei UI")
     font.setPointSize(pt)
     font.setHintingPreference(QFont.HintingPreference.PreferFullHinting)
-    app.setFont(font)
+
+    if apply_theme:
+        apply_theme_palette(theme)
+        apply_app_palette(app, theme)
+        app.setStyleSheet(load_stylesheet())
+        app.setFont(font)
 
     compact = get_bool("compact_mode", False)
     app.setProperty("compact_mode", compact)
 
     if main_window is not None:
-        _apply_main_window_settings(main_window)
+        main_window.setStyleSheet("")
+        _apply_main_window_settings(main_window, refresh_files=not startup)
         from ui.i18n import retranslate_all_settings_dialogs
         retranslate_all_settings_dialogs()
         for widget in main_window.findChildren(QWidget):
@@ -279,14 +285,14 @@ def apply_app_settings(app: QApplication, main_window: QMainWindow | None = None
         app.processEvents()
 
 
-def _apply_main_window_settings(window: QMainWindow) -> None:
+def _apply_main_window_settings(window: QMainWindow, *, refresh_files: bool = True) -> None:
     from ui.i18n import retranslate_main_window
 
     retranslate_main_window(window)
 
     ws = get_workspace_path()
     if hasattr(window, "_results"):
-        window._results.set_workspace(ws)
+        window._results.set_workspace(ws, refresh=refresh_files)
 
     user = get_setting("user_name", "").strip() or "🐷🐷Buddy 用户"
     if hasattr(window, "_sidebar") and hasattr(window._sidebar, "set_user_name"):

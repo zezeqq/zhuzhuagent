@@ -6,7 +6,8 @@ HIGH_RISK_TOOLS = {"file_delete", "keyboard_type", "mouse_click"}
 
 MEDIUM_RISK_TOOLS = {"shell_run", "file_write", "software_launch", "code_create", "skill_install"}
 
-LOW_RISK_TOOLS = {"file_read", "file_list", "open_url", "office_word_create",
+LOW_RISK_TOOLS = {"file_read", "file_list", "open_url", "web_search", "web_fetch",
+                  "office_word_create",
                   "office_excel_create", "office_ppt_create", "screen_capture", "list_apps",
                   "ui_locate", "library_list", "library_search"}
 
@@ -37,6 +38,8 @@ def describe_risk(tool_name: str) -> str:
         "file_delete": "删除文件（不可恢复）",
         "software_launch": "启动程序",
         "open_url": "打开网页",
+        "web_search": "联网搜索",
+        "web_fetch": "抓取网页正文",
         "office_word_create": "生成 Word 文档",
         "office_excel_create": "生成 Excel 表格",
         "office_ppt_create": "生成 PPT 演示文稿",

@@ -23,7 +23,7 @@ _SYSTEM_PROMPT_TEMPLATE = """你是 __APP_NAME__ —— 面向工程技术人员
 
 推荐工作流：
 1. **理解意图** —— 用户要交付什么（Word/PPT/Excel/分析报告）？
-2. **查资料** —— 用 `library_search` / @ 引用 / 消息内参考资料
+2. **查资料** —— 用 `library_search` / @ 引用 / **`web_search` + `web_fetch` 获取最新联网信息**
 3. **生成内容** —— 你负责专业、完整的正文；工具负责落盘
 4. **交付** —— 用 `office_word_create` / `office_ppt_create` / `office_excel_create` 输出到 exports
 5. **诚实汇报** —— 说明生成了什么文件、依据了哪些资料
@@ -31,8 +31,9 @@ _SYSTEM_PROMPT_TEMPLATE = """你是 __APP_NAME__ —— 面向工程技术人员
 ## 什么时候用工具
 
 - **问答、分析、翻译** → 直接回答（可结合资料库检索结果）
-- **写方案 / 报告 / PPT / 表格** → `library_search` 取依据 → 一次 `office_*` 生成文件
+- **写方案 / 报告 / PPT / 表格** → 需要最新数据时 `web_search` → 必要时 `web_fetch` → 结合 `library_search` → `office_*` 生成文件
 - **读用户资料** → `library_list` / `library_search` / `file_read`（路径来自资料库列表）
+- **查实时信息**（排行榜、新闻、价格、最新标准）→ **`web_search`**，要正文再 **`web_fetch`**
 - **用户明确说「打开某软件」** → 可用 `find_application` + `software_launch` 启动，**默认不要在软件内自动点击/输入**
 
 ## 文档生成（核心能力）
@@ -53,6 +54,7 @@ _SYSTEM_PROMPT_TEMPLATE = """你是 __APP_NAME__ —— 面向工程技术人员
 ## 工具速查（优先使用）
 
 - `library_search` / `library_list`：资料库检索与列表
+- `web_search` / `web_fetch`：联网搜索与抓取网页正文（需开启网络权限）
 - `office_word_create` / `office_ppt_create` / `office_excel_create`：生成 Office 文件
 - `file_read` / `file_write` / `file_list`：读写工作区文件
 - `find_application` / `software_launch`：仅「打开程序」类请求
@@ -103,7 +105,6 @@ ASK_MODE_SUFFIX = """
 **当前是「问一问」模式：仅文字问答与分析，禁止调用任何工具。**"""
 
 TOOL_ROUND_MAX_TOKENS = 2048
-_TOOL_MSG_LIMIT = 600
 _SAFETY_MAX_ROUNDS = 500
 
 
@@ -131,16 +132,20 @@ class Agent:
     ) -> Generator[dict[str, Any], None, None]:
         """LLM-driven agent loop.
 
-        Yields: tool_call, thinking, token, plan_ready, task_started, guidance, final_reply, error
+        Yields: tool_call, assistant_step, thinking, token, plan_ready, task_started, guidance, final_reply, error
         """
+        from core.model_profiles import enrich_model_config, is_vision_capable, resolve_tool_max_tokens
+
         project = project or current_project()
+        model = enrich_model_config(model or default_model())
+        if model and not is_vision_capable(model):
+            self._vision_supported[model.get("model_name", "")] = False
 
         if local_search_only:
             yield from self._run_local_search(user_text, project, referenced_files=referenced_files)
             return
 
         if mode == "ask":
-            model = model or default_model()
             if not model:
                 yield from self._run_local_search(user_text, project, referenced_files=referenced_files)
                 return
@@ -152,7 +157,6 @@ class Agent:
             return
 
         if mode == "plan" and not plan_execute:
-            model = model or default_model()
             if not model:
                 yield {"type": "error", "content": "想一想模式需要配置 AI 模型。"}
                 return
@@ -162,7 +166,6 @@ class Agent:
             )
             return
 
-        model = model or default_model()
         if not model:
             action = self._try_local_action(user_text)
             if action:
@@ -170,38 +173,64 @@ class Agent:
             yield {"type": "final_reply", "content": self._local_answer(user_text, project)}
             return
 
-        from agent_runtime.executor import Executor
-        from agent_runtime.planner import plan_from_confirmed_markdown, plan_with_llm
-
         if plan_execute and plan_context.strip():
+            from agent_runtime.executor import Executor
+            from agent_runtime.planner import plan_from_confirmed_markdown
+
             task_plan = plan_from_confirmed_markdown(user_text, plan_context, project)
-        else:
-            task_plan = plan_with_llm(user_text, model, project)
+            task_id = start_task(
+                conversation_id=conversation_id,
+                goal=user_text,
+                task_type=task_plan.task_type,
+                plan_json=task_plan.to_json(),
+            )
+            yield {"type": "task_started", "task_id": task_id}
+            executor = Executor()
+            try:
+                yield from executor.run_plan_streaming(
+                    task_plan,
+                    task_id=task_id,
+                    model=model,
+                    project=project,
+                    conversation_id=conversation_id,
+                    expert_prompt=expert_prompt,
+                    full_access=full_access,
+                    max_rounds=max_rounds,
+                    history=history,
+                    attachments=attachments,
+                    referenced_files=referenced_files,
+                    request_permission=request_permission,
+                    active_skill_package=active_skill_package,
+                    guidance_poll=guidance_poll,
+                )
+                complete_task(task_id, status="completed")
+            except Exception:
+                complete_task(task_id, status="failed")
+                raise
+            return
 
         task_id = start_task(
             conversation_id=conversation_id,
             goal=user_text,
-            task_type=task_plan.task_type,
-            plan_json=task_plan.to_json(),
+            task_type="agent_craft",
         )
         yield {"type": "task_started", "task_id": task_id}
-
-        executor = Executor()
         try:
-            yield from executor.run_plan_streaming(
-                task_plan,
-                task_id=task_id,
+            yield from self._run_tool_loop(
+                user_text=user_text,
                 model=model,
                 project=project,
-                conversation_id=conversation_id,
                 expert_prompt=expert_prompt,
+                mode="craft",
                 full_access=full_access,
                 max_rounds=max_rounds,
                 history=history,
                 attachments=attachments,
-                referenced_files=referenced_files,
                 request_permission=request_permission,
+                plan_context="",
+                task_id=task_id,
                 active_skill_package=active_skill_package,
+                referenced_files=referenced_files,
                 guidance_poll=guidance_poll,
             )
             complete_task(task_id, status="completed")
@@ -289,32 +318,22 @@ class Agent:
         model: dict,
         referenced_files: list[str] | None = None,
     ) -> list[dict]:
+        from core.context_builder import build_agent_messages
+        from core.model_profiles import is_vision_capable
+
         user_content = self._build_user_content(user_text, project, referenced_files)
-        messages: list[dict] = [{"role": "system", "content": system}]
-        if history:
-            for h in history[-20:]:
-                role = h.get("role", "")
-                content = h.get("content", "")
-                if role in ("user", "assistant") and content:
-                    if role == "assistant" and len(content) > 2000:
-                        content = content[:2000] + "…"
-                    messages.append({"role": role, "content": content})
-        attachment_list = attachments or []
-        if attachment_list:
-            model_name = model.get("model_name", "")
-            if self._vision_supported.get(model_name) is not False:
-                image_parts = self._encode_image_attachments(attachment_list)
-                if image_parts:
-                    content_array: list[dict] = [{"type": "text", "text": user_content}]
-                    content_array.extend(image_parts)
-                    messages.append({"role": "user", "content": content_array})
-                else:
-                    messages.append({"role": "user", "content": user_content})
-            else:
-                desc = "\n".join(f"[图片: {p}]" for p in attachment_list)
-                messages.append({"role": "user", "content": user_content + "\n" + desc})
-        else:
-            messages.append({"role": "user", "content": user_content})
+        model_name = model.get("model_name", "")
+        vision_ok = is_vision_capable(model) and self._vision_supported.get(model_name) is not False
+        messages, _ = build_agent_messages(
+            system=system,
+            history_rows=history,
+            user_content=user_content,
+            current_user_text=user_text,
+            attachments=attachments,
+            model=model,
+            encode_images=self._encode_image_attachments,
+            vision_supported=vision_ok,
+        )
         return messages
 
     def _run_tool_loop(
@@ -341,32 +360,24 @@ class Agent:
         )
         if plan_context:
             system += f"\n\n用户已确认以下计划，请按步骤执行：\n{plan_context}"
+        from core.context_builder import build_agent_messages, fit_messages_to_budget, resolve_context_budget
+        from core.model_profiles import is_vision_capable, resolve_tool_max_tokens
+
         user_content = self._build_user_content(user_text, project, referenced_files)
-        messages: list[dict] = [{"role": "system", "content": system}]
-        if history:
-            for h in history[-20:]:
-                role = h.get("role", "")
-                content = h.get("content", "")
-                if role in ("user", "assistant") and content:
-                    if role == "assistant" and len(content) > 2000:
-                        content = content[:2000] + "…"
-                    messages.append({"role": role, "content": content})
-        attachment_list = attachments or []
-        if attachment_list:
-            model_name = model.get("model_name", "")
-            if self._vision_supported.get(model_name) is not False:
-                image_parts = self._encode_image_attachments(attachment_list)
-                if image_parts:
-                    content_array: list[dict] = [{"type": "text", "text": user_content}]
-                    content_array.extend(image_parts)
-                    messages.append({"role": "user", "content": content_array})
-                else:
-                    messages.append({"role": "user", "content": user_content})
-            else:
-                desc_parts = [f"[用户附带了图片: {fpath}]" for fpath in attachment_list]
-                messages.append({"role": "user", "content": user_content + "\n" + "\n".join(desc_parts)})
-        else:
-            messages.append({"role": "user", "content": user_content})
+        model_name = model.get("model_name", "")
+        vision_ok = is_vision_capable(model) and self._vision_supported.get(model_name) is not False
+        tool_max_tokens = resolve_tool_max_tokens(model)
+        messages, history_end = build_agent_messages(
+            system=system,
+            history_rows=history,
+            user_content=user_content,
+            current_user_text=user_text,
+            attachments=attachments,
+            model=model,
+            encode_images=self._encode_image_attachments,
+            vision_supported=vision_ok,
+        )
+        context_budget = resolve_context_budget(model)
 
         client = ModelClient()
         load_installed_handlers()
@@ -394,10 +405,10 @@ class Agent:
                     messages.append({"role": "user", "content": hint})
                     yield {"type": "guidance", "content": note}
 
-            self._compact_messages_for_llm(messages)
+            fit_messages_to_budget(messages, context_budget, protect_from_index=history_end)
             try:
                 response = client.chat_with_tools(
-                    messages, model, tools=active_tools, max_tokens=TOOL_ROUND_MAX_TOKENS,
+                    messages, model, tools=active_tools, max_tokens=tool_max_tokens,
                 )
             except ModelClientError as exc:
                 if "400" in str(exc) and self._strip_images_from_messages(messages):
@@ -413,9 +424,9 @@ class Agent:
                     return
 
             if response.tool_calls:
-                messages.append(response.raw_message)
-                if response.content and len(response.content.strip()) > 20:
-                    yield {"type": "thinking", "content": response.content}
+                raw_message = dict(response.raw_message or {})
+                yield {"type": "assistant_step", "message": raw_message}
+                messages.append(raw_message)
 
                 vision_screenshot_paths: list[str] = []
                 vision_screenshot_sizes: dict[str, str] = {}
@@ -436,7 +447,13 @@ class Agent:
                             )
                             step_index += 1
                             log_tool_step(task_id, step_index, tc.name, tc.arguments, result, status="failed")
-                            yield {"type": "tool_call", "name": tc.name, "args": tc.arguments, "result": result}
+                            yield {
+                                "type": "tool_call",
+                                "id": tc.id,
+                                "name": tc.name,
+                                "args": tc.arguments,
+                                "result": result,
+                            }
                             messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
                             continue
 
@@ -464,7 +481,13 @@ class Agent:
                             if size_hint:
                                 vision_screenshot_sizes[img_path] = size_hint
 
-                    yield {"type": "tool_call", "name": tc.name, "args": tc.arguments, "result": display_result}
+                    yield {
+                        "type": "tool_call",
+                        "id": tc.id,
+                        "name": tc.name,
+                        "args": tc.arguments,
+                        "result": display_result,
+                    }
                     messages.append({"role": "tool", "tool_call_id": tc.id, "content": display_result})
 
                 if vision_screenshot_paths:
@@ -537,26 +560,9 @@ class Agent:
 
     @staticmethod
     def _compact_messages_for_llm(messages: list[dict]) -> None:
-        """Trim context so each LLM round stays fast."""
-        stale_vision = 0
-        for msg in messages:
-            role = msg.get("role")
-            content = msg.get("content")
-
-            if role == "tool":
-                text = content if isinstance(content, str) else str(content)
-                if len(text) > _TOOL_MSG_LIMIT:
-                    msg["content"] = text[:_TOOL_MSG_LIMIT] + "…(已截断)"
-
-            if role == "user" and isinstance(content, list):
-                has_image = any(p.get("type") == "image_url" for p in content)
-                if has_image:
-                    stale_vision += 1
-                    if stale_vision > 1:
-                        msg["content"] = "（此前的截图已过期，请基于最新截图判断）"
-
-            if role == "assistant" and isinstance(content, str) and len(content) > 1500:
-                msg["content"] = content[:1500] + "…"
+        """兼容旧调用：默认按 128K 预算压缩历史区（不含 system）。"""
+        from core.context_builder import DEFAULT_CONTEXT_TOKENS, fit_messages_to_budget
+        fit_messages_to_budget(messages, DEFAULT_CONTEXT_TOKENS, protect_from_index=1)
 
     def _build_system_prompt(
         self,
@@ -610,6 +616,8 @@ class Agent:
             user_text,
             project_id=project["id"] if project else None,
             include_standards=True,
+            limit=5,
+            use_vector=False,
         )
         if chunks:
             lines: list[str] = []
@@ -619,7 +627,7 @@ class Agent:
                 page_hint = f" p.{page}" if page else ""
                 lines.append(f"- [{source}{page_hint}] {c['content'][:400]}")
             sections.append(
-                "参考资料（来自资料库/标准库向量检索；若与问题相关则引用，不相关则忽略）：\n"
+                "参考资料（来自资料库/标准库检索；若与问题相关则引用，不相关则忽略）：\n"
                 + "\n".join(lines)
             )
         if sections:

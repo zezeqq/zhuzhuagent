@@ -251,27 +251,72 @@ def _open_url(args: dict) -> str:
     return f"已在浏览器中打开: {url}"
 
 
+def _web_search(args: dict) -> str:
+    from utils.web_access import format_search_results, search_web
+
+    query = (args.get("query") or "").strip()
+    if not query:
+        return "错误：请提供 query 搜索词。"
+    limit = int(args.get("limit") or 8)
+    results = search_web(query, max_results=limit)
+    return format_search_results(query, results)
+
+
+def _web_fetch(args: dict) -> str:
+    from utils.web_access import fetch_web_page
+
+    url = (args.get("url") or "").strip()
+    if not url:
+        return "错误：请提供 url。"
+    max_chars = int(args.get("max_chars") or 12000)
+    try:
+        page = fetch_web_page(url, max_chars=max_chars)
+    except Exception as exc:
+        return f"网页抓取失败：{exc}"
+    title = page.get("title") or url
+    text = page.get("text") or ""
+    return f"# {title}\n\nURL: {page.get('url') or url}\n\n{text}"
+
+
 def _office_word_create(args: dict) -> str:
-    from adapters.office_word_adapter import create_word_document
-    title = args["title"]
-    sections = [(s["heading"], s["body"]) for s in args["sections"]]
+    from adapters.office_word_adapter import create_word_document, normalize_word_sections, validate_word_input
+
+    title = args.get("title", "文档")
     filename = args.get("filename", f"{title}.docx")
     if not filename.endswith(".docx"):
         filename += ".docx"
+    sections = normalize_word_sections(
+        sections=args.get("sections"),
+        content=args.get("content"),
+    )
+    validate_word_input(sections=sections)
     path = create_word_document(title, sections, filename)
     _register_artifact(str(path), filename, "docx")
     return f"Word 文档已生成: {path}"
 
 
 def _office_excel_create(args: dict) -> str:
-    from adapters.office_excel_adapter import create_excel_workbook
-    title = args["title"]
-    headers = args["headers"]
-    rows = args["rows"]
-    filename = args.get("filename", f"{title}.xlsx")
+    from adapters.office_excel_adapter import create_excel_workbook, validate_excel_input
+
+    filename = args.get("filename", f"{args.get('title', 'workbook')}.xlsx")
     if not filename.endswith(".xlsx"):
         filename += ".xlsx"
-    path = create_excel_workbook(title, headers, rows, filename)
+
+    sheets = args.get("sheets")
+    title = args.get("title", "")
+    headers = args.get("headers")
+    rows = args.get("rows")
+    validate_excel_input(title=title, headers=headers, rows=rows, sheets=sheets)
+
+    if sheets:
+        path = create_excel_workbook(
+            title=title,
+            output_name=filename,
+            sheets=sheets,
+        )
+    else:
+        path = create_excel_workbook(title or "Sheet1", headers or [], rows or [], filename)
+
     _register_artifact(str(path), filename, "xlsx")
     return f"Excel 表格已生成: {path}"
 
@@ -684,8 +729,17 @@ def _library_search(args: dict) -> str:
     project_id = project["id"] if project else None
     chunks = search_chunks(query, project_id=project_id, include_standards=True, limit=limit)
     if not chunks:
-        return "资料库与标准库中未检索到相关内容。请确认文件已在资料库导入并完成索引。"
+        return (
+            f"资料库与标准库中未检索到与「{query}」高度相关的内容。"
+            "请确认已导入对应资料；财务/分析类任务可直接让 Agent 生成表格，不必强行引用无关标准。"
+        )
+    weak = all(float(chunk.get("keyword_score") or 0) < 0.34 for chunk in chunks)
     lines = [f"# 资料库检索：{query}", ""]
+    if weak:
+        lines.append(
+            "> 提示：未找到与检索词高度匹配的资料，以下结果相关度较低，请勿当作财务/模板依据。"
+        )
+        lines.append("")
     for idx, chunk in enumerate(chunks, 1):
         source = chunk.get("file_name") or chunk.get("standard_code") or "未知来源"
         page = chunk.get("page_number")
@@ -711,6 +765,8 @@ _HANDLERS: dict[str, Any] = {
     "software_launch": _software_launch,
     "find_application": _find_application,
     "open_url": _open_url,
+    "web_search": _web_search,
+    "web_fetch": _web_fetch,
     "office_word_create": _office_word_create,
     "office_excel_create": _office_excel_create,
     "office_ppt_create": _office_ppt_create,

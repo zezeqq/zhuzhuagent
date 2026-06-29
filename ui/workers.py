@@ -12,6 +12,7 @@ class AgentWorker(QThread):
     """Event-driven agent worker that emits signals for each step of the LLM loop."""
 
     tool_call = Signal(dict)
+    assistant_step = Signal(dict)
     thinking = Signal(str)
     token = Signal(str)
     plan_ready = Signal(str)
@@ -132,6 +133,8 @@ class AgentWorker(QThread):
                 event_type = event.get("type", "")
                 if event_type == "tool_call":
                     self.tool_call.emit(event)
+                elif event_type == "assistant_step":
+                    self.assistant_step.emit(event.get("message") or {})
                 elif event_type == "thinking":
                     self.thinking.emit(event["content"])
                 elif event_type == "token":

@@ -73,6 +73,24 @@ def apply_theme_palette(theme_name: str) -> None:
             setattr(Palette, attr, getattr(source, attr))
 
 
+def apply_app_palette(app, theme_name: str) -> None:
+    """设置 QApplication 调色板，避免窗口在 QSS 生效前闪白底。"""
+    from PySide6.QtGui import QColor, QPalette
+
+    source = LightPalette if theme_name == "浅色" else DarkPalette
+    pal = QPalette()
+    window = QColor(source.BG)
+    text = QColor(source.TEXT)
+    base = QColor(source.INPUT)
+    pal.setColor(QPalette.ColorRole.Window, window)
+    pal.setColor(QPalette.ColorRole.WindowText, text)
+    pal.setColor(QPalette.ColorRole.Base, base)
+    pal.setColor(QPalette.ColorRole.Text, text)
+    pal.setColor(QPalette.ColorRole.Button, QColor(source.SURFACE))
+    pal.setColor(QPalette.ColorRole.ButtonText, text)
+    app.setPalette(pal)
+
+
 class Radius:
     XS = 8
     SM = 12

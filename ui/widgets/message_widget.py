@@ -82,6 +82,10 @@ class AgentMessage(QFrame):
         self._browser.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self._browser.document().setDocumentMargin(0)
         self._browser.anchorClicked.connect(self._on_link_clicked)
+        self._render_timer = QTimer(self)
+        self._render_timer.setSingleShot(True)
+        self._render_timer.setInterval(90)
+        self._render_timer.timeout.connect(self._flush_markdown_render)
         self._browser.setHtml(markdown_to_html(text))
         self._browser.document().contentsChanged.connect(self._adjust_height)
         self._adjust_height()
@@ -122,14 +126,29 @@ class AgentMessage(QFrame):
         super().resizeEvent(event)
         self._adjust_height()
 
+    def _flush_markdown_render(self) -> None:
+        if not _qobject_alive(self._browser):
+            return
+        self._browser.setHtml(markdown_to_html(self._raw_text))
+        self._adjust_height()
+
+    def _schedule_markdown_render(self, *, immediate: bool = False) -> None:
+        if immediate:
+            self._render_timer.stop()
+            self._flush_markdown_render()
+            return
+        self._render_timer.start()
+
     def set_text(self, text: str) -> None:
         if not _qobject_alive(self._browser):
             return
         self._raw_text = text
-        self._browser.setHtml(markdown_to_html(text))
-        self._adjust_height()
+        self._schedule_markdown_render(immediate=True)
         from PySide6.QtCore import QTimer
         QTimer.singleShot(100, self._adjust_height)
+        is_final = not text.startswith("🤔") and not text.startswith("🔧") and len(text) > 10
+        if _qobject_alive(self._action_bar):
+            self._action_bar.setVisible(is_final)
         is_final = not text.startswith("🤔") and not text.startswith("🔧") and len(text) > 10
         if _qobject_alive(self._action_bar):
             self._action_bar.setVisible(is_final)
@@ -140,15 +159,13 @@ class AgentMessage(QFrame):
         self._raw_text = (self._raw_text or "") + token
         if self._raw_text.startswith("🤔"):
             self._raw_text = self._raw_text.lstrip("🤔 思考中…").lstrip()
-        self._browser.setHtml(markdown_to_html(self._raw_text))
-        self._adjust_height()
+        self._schedule_markdown_render()
 
     def append_text(self, chunk: str) -> None:
         if not _qobject_alive(self._browser):
             return
         self._raw_text += chunk
-        self._browser.setHtml(markdown_to_html(self._raw_text))
-        self._adjust_height()
+        self._schedule_markdown_render()
 
     def _on_link_clicked(self, url) -> None:
         """Handle clicks on links — open file paths locally, URLs in browser."""
@@ -455,7 +472,7 @@ class FollowUpActionMessage(QFrame):
 TOOL_ICONS: dict[str, str] = {
     "shell_run": "⚡", "file_read": "📖", "file_write": "✏️",
     "file_list": "📂", "file_delete": "🗑️", "software_launch": "🚀",
-    "open_url": "🌐", "office_word_create": "📄", "office_excel_create": "📊",
+    "open_url": "🌐", "web_search": "🔍", "web_fetch": "📡", "office_word_create": "📄", "office_excel_create": "📊",
     "office_ppt_create": "📑", "code_create": "💻", "keyboard_type": "⌨️",
     "hotkey_press": "🎹", "window_focus": "🪟", "list_apps": "📋",
     "ui_locate": "🎯", "ui_click": "👆",
@@ -653,6 +670,94 @@ class ToolCallMessage(QFrame):
         if name == "library_list":
             return "列出资料库文件"
         return ""
+
+
+class ThinkingBlock(QFrame):
+    """可折叠的 Agent 推理/思考过程（DeepSeek reasoning 等）。"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("ThinkingBlock")
+        self._collapsed = True
+        self._parts: list[str] = []
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self._header = QFrame()
+        self._header.setObjectName("ThinkingBlockHeader")
+        self._header.setCursor(Qt.PointingHandCursor)
+        self._header.setFixedHeight(34)
+        header_layout = QHBoxLayout(self._header)
+        header_layout.setContentsMargins(14, 0, 12, 0)
+        header_layout.setSpacing(8)
+        self._summary_label = QLabel("💭 思考中…")
+        self._summary_label.setObjectName("ThinkingBlockSummary")
+        header_layout.addWidget(self._summary_label, 1)
+        self._chevron = QLabel("▶")
+        self._chevron.setObjectName("ThinkingBlockChevron")
+        self._chevron.setFixedWidth(16)
+        header_layout.addWidget(self._chevron)
+        layout.addWidget(self._header)
+
+        def _header_click(event):
+            if event.button() == Qt.LeftButton:
+                self._toggle_collapsed()
+            QFrame.mouseReleaseEvent(self._header, event)
+
+        self._header.mouseReleaseEvent = _header_click
+
+        self._body = QFrame()
+        self._body.setObjectName("ThinkingBlockBody")
+        body_layout = QVBoxLayout(self._body)
+        body_layout.setContentsMargins(14, 8, 14, 10)
+        self._text = QLabel("")
+        self._text.setObjectName("ThinkingBlockText")
+        self._text.setWordWrap(True)
+        self._text.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        body_layout.addWidget(self._text)
+        layout.addWidget(self._body)
+        self._apply_collapsed_state()
+
+    def append_text(self, text: str) -> None:
+        chunk = (text or "").strip()
+        if not chunk:
+            return
+        if self._parts and self._parts[-1] == chunk:
+            return
+        self._parts.append(chunk)
+        self._text.setText("\n\n".join(self._parts))
+        self._refresh_summary()
+
+    def set_text(self, text: str) -> None:
+        self._parts = [(text or "").strip()] if (text or "").strip() else []
+        self._text.setText("\n\n".join(self._parts))
+        self._refresh_summary()
+
+    def finalize(self) -> None:
+        self._refresh_summary(done=True)
+        self.set_collapsed(True)
+
+    def set_collapsed(self, collapsed: bool) -> None:
+        self._collapsed = collapsed
+        self._apply_collapsed_state()
+
+    def _toggle_collapsed(self) -> None:
+        self.set_collapsed(not self._collapsed)
+
+    def _apply_collapsed_state(self) -> None:
+        self._body.setVisible(not self._collapsed)
+        self._chevron.setText("▶" if self._collapsed else "▼")
+
+    def _refresh_summary(self, *, done: bool = False) -> None:
+        n = len(self._parts)
+        if done:
+            self._summary_label.setText(f"💭 思考过程" + (f"（{n} 步）" if n > 1 else ""))
+        elif n <= 1:
+            self._summary_label.setText("💭 思考中…")
+        else:
+            self._summary_label.setText(f"💭 思考中…（{n} 步）")
 
 
 class ToolCallsGroup(QFrame):

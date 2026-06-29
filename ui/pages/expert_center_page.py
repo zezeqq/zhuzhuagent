@@ -701,7 +701,13 @@ class ExpertCenterPage(QFrame):
 
         self._load_custom_experts()
         self._load_installed_skills()
-        QTimer.singleShot(600, self._startup_catalog_refresh)
+        self._catalog_bootstrapped = False
+
+    def _ensure_startup_catalog(self) -> None:
+        if self._catalog_bootstrapped:
+            return
+        self._catalog_bootstrapped = True
+        QTimer.singleShot(300, self._startup_catalog_refresh)
 
     def _startup_catalog_refresh(self):
         """启动后后台拉远程目录并刷新当前 Tab。"""

@@ -11,6 +11,11 @@ _VECTOR_MIN_SCORE = {
 _VECTOR_SCAN_LIMIT = 800
 
 
+_STRONG_QUERY_ANCHORS = frozenset({
+    "财务", "会计", "预算", "模板", "分析", "报告", "工程", "验收", "投标", "施工", "合同", "清单",
+})
+
+
 def _keyword_search(query: str, project_id: int | None, include_standards: bool, limit: int) -> list[tuple[float, dict]]:
     words = keywords_from_query(query)
     if not words:
@@ -27,14 +32,27 @@ def _keyword_search(query: str, project_id: int | None, include_standards: bool,
     elif include_standards:
         sql += " AND (source_type='file' OR source_type='standard')"
     sql += " ORDER BY id DESC LIMIT ?"
-    params.append(limit * 4)
+    params.append(limit * 8)
     rows = query_all(sql, params)
+    strong_anchors = [w for w in words if w in _STRONG_QUERY_ANCHORS]
+    min_match = 1 if len(words) <= 2 else max(2, (len(words) + 2) // 3)
     hits: list[tuple[float, dict]] = []
     for row in rows:
         content = (row.get("content") or "").lower()
-        matched = sum(1 for w in words if w.lower() in content or w.lower() in (row.get("keywords") or "").lower())
-        if matched:
-            hits.append((matched / max(len(words), 1), row))
+        keyword_blob = (row.get("keywords") or "").lower()
+        matched = sum(
+            1 for w in words
+            if w.lower() in content or w.lower() in keyword_blob
+        )
+        if matched < min_match:
+            continue
+        if strong_anchors and not any(a in content or a in keyword_blob for a in strong_anchors):
+            continue
+        score = matched / max(len(words), 1)
+        if strong_anchors:
+            anchor_hits = sum(1 for a in strong_anchors if a in content or a in keyword_blob)
+            score += anchor_hits * 0.08
+        hits.append((score, row))
     hits.sort(key=lambda x: x[0], reverse=True)
     return hits[:limit]
 
@@ -96,12 +114,14 @@ def search_chunks(
     project_id: int | None = None,
     include_standards: bool = True,
     limit: int = 6,
+    *,
+    use_vector: bool = True,
 ) -> list[dict]:
-    """混合检索：语义向量（dense/API/local）+ 关键词 LIKE 兜底，RRF 式加权合并。"""
+    """混合检索：语义向量 + 关键词 LIKE 兜底。use_vector=False 时仅关键词（更快）。"""
     if not (query or "").strip():
         return []
 
-    vector_hits = _vector_search(query, project_id, include_standards, limit)
+    vector_hits = _vector_search(query, project_id, include_standards, limit) if use_vector else []
     keyword_hits = _keyword_search(query, project_id, include_standards, limit)
 
     merged: dict[int, dict] = {}

@@ -65,19 +65,40 @@ def _executor_tool_names() -> set[str]:
 def _normalize_registry_args(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
     data = dict(args or {})
     if tool_name == "office.word.create":
-        sections = data.get("sections") or []
-        fixed: list[tuple[str, str]] = []
-        for item in sections:
-            if isinstance(item, dict):
-                fixed.append((str(item.get("heading", "")), str(item.get("body", ""))))
-            elif isinstance(item, (list, tuple)) and len(item) >= 2:
-                fixed.append((str(item[0]), str(item[1])))
-        data["sections"] = fixed
+        from adapters.office_word_adapter import normalize_word_sections
+
+        sections = normalize_word_sections(
+            sections=data.get("sections"),
+            content=data.get("content"),
+        )
+        data["sections"] = sections
+        data.pop("content", None)
         if "filename" in data and "output_name" not in data:
             data["output_name"] = data.pop("filename")
+        allowed = {"title", "sections", "output_name"}
+        data = {key: value for key, value in data.items() if key in allowed}
     elif tool_name == "office.excel.create":
+        sheets = data.get("sheets")
+        if sheets:
+            fixed_sheets: list[dict[str, Any]] = []
+            for idx, item in enumerate(sheets):
+                if isinstance(item, dict):
+                    fixed_sheets.append({
+                        "title": str(item.get("title") or item.get("name") or data.get("title") or f"Sheet{idx + 1}"),
+                        "headers": list(item.get("headers") or []),
+                        "rows": [list(row) for row in (item.get("rows") or [])],
+                    })
+                elif isinstance(item, (list, tuple)) and len(item) >= 3:
+                    fixed_sheets.append({
+                        "title": str(item[0] or f"Sheet{idx + 1}"),
+                        "headers": list(item[1]),
+                        "rows": [list(row) for row in item[2]],
+                    })
+            data["sheets"] = fixed_sheets
         if "filename" in data and "output_name" not in data:
             data["output_name"] = data.pop("filename")
+        allowed = {"title", "headers", "rows", "output_name", "sheets"}
+        data = {key: value for key, value in data.items() if key in allowed}
     elif tool_name == "office.ppt.create":
         slides = data.get("slides") or []
         fixed_slides: list[tuple[str, list[str]]] = []
@@ -106,17 +127,35 @@ def _normalize_executor_args(tool_name: str, args: dict[str, Any]) -> dict[str, 
         if "output_name" in data and "filename" not in data:
             data["filename"] = data.pop("output_name")
         if name == "office_word_create":
-            sections = data.get("sections") or []
-            fixed: list[dict[str, str]] = []
-            for item in sections:
-                if isinstance(item, dict):
-                    fixed.append({
-                        "heading": str(item.get("heading", "")),
-                        "body": str(item.get("body", "")),
-                    })
-                elif isinstance(item, (list, tuple)) and len(item) >= 2:
-                    fixed.append({"heading": str(item[0]), "body": str(item[1])})
-            data["sections"] = fixed
+            from adapters.office_word_adapter import normalize_word_sections
+
+            sections = normalize_word_sections(
+                sections=data.get("sections"),
+                content=data.get("content"),
+            )
+            data["sections"] = [
+                {"heading": h, "body": b}
+                for h, b in sections
+            ]
+            data.pop("content", None)
+        elif name == "office_excel_create":
+            sheets = data.get("sheets")
+            if sheets:
+                fixed_sheets: list[dict[str, Any]] = []
+                for idx, item in enumerate(sheets):
+                    if isinstance(item, dict):
+                        fixed_sheets.append({
+                            "title": str(item.get("title") or item.get("name") or data.get("title") or f"Sheet{idx + 1}"),
+                            "headers": list(item.get("headers") or []),
+                            "rows": [list(row) for row in (item.get("rows") or [])],
+                        })
+                    elif isinstance(item, (list, tuple)) and len(item) >= 3:
+                        fixed_sheets.append({
+                            "title": str(item[0] or f"Sheet{idx + 1}"),
+                            "headers": list(item[1]),
+                            "rows": [list(row) for row in item[2]],
+                        })
+                data["sheets"] = fixed_sheets
         elif name == "office_ppt_create":
             slides = data.get("slides") or []
             fixed: list[dict[str, Any]] = []

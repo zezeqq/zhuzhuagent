@@ -21,7 +21,8 @@ from ui.i18n import register_settings_dialog, t, unregister_settings_dialog
 
 
 _PROVIDER_PRESETS = {
-    "DeepSeek": ("https://api.deepseek.com", "deepseek-chat"),
+    "DeepSeek V4 Pro": ("https://api.deepseek.com", "deepseek-v4-pro"),
+    "DeepSeek (旧 ID)": ("https://api.deepseek.com", "deepseek-chat"),
     "OpenAI": ("https://api.openai.com/v1", "gpt-4o"),
     "Kimi/Moonshot": ("https://api.moonshot.cn/v1", "moonshot-v1-8k"),
     "智谱GLM": ("https://open.bigmodel.cn/api/paas/v4", "glm-4"),
@@ -144,6 +145,13 @@ class SettingsDialog(QDialog):
         self._feedback.setAlignment(Qt.AlignCenter)
         right_layout.addWidget(self._feedback)
 
+        self._feedback_timer = QTimer(self)
+        self._feedback_timer.setSingleShot(True)
+        self._feedback_timer.timeout.connect(self._clear_feedback)
+        self._catalog_save_timer = QTimer(self)
+        self._catalog_save_timer.setSingleShot(True)
+        self._catalog_save_timer.timeout.connect(self._save_catalog_urls_from_editor)
+
         self._stack = QStackedWidget()
         self._stack.addWidget(self._page_account())
         self._stack.addWidget(self._page_system())
@@ -167,6 +175,34 @@ class SettingsDialog(QDialog):
     def showEvent(self, event) -> None:
         super().showEvent(event)
         on_frameless_dialog_show(self)
+
+    def closeEvent(self, event) -> None:
+        self._feedback_timer.stop()
+        self._catalog_save_timer.stop()
+        super().closeEvent(event)
+
+    def _clear_feedback(self) -> None:
+        try:
+            from shiboken6 import isValid
+            if isValid(self._feedback):
+                self._feedback.setText("")
+        except RuntimeError:
+            pass
+
+    def _save_catalog_urls_from_editor(self) -> None:
+        editor = getattr(self, "_catalog_urls_editor", None)
+        if editor is None:
+            return
+        try:
+            from shiboken6 import isValid
+            if not isValid(editor):
+                return
+            self._save_setting("remote_catalog_url", editor.toPlainText().strip())
+        except RuntimeError:
+            pass
+
+    def _schedule_catalog_urls_save(self) -> None:
+        self._catalog_save_timer.start(600)
 
     def _register_i18n(self, widget, key: str, method: str = "setText") -> None:
         self._i18n_widgets.append((widget, method, key))
@@ -214,7 +250,7 @@ class SettingsDialog(QDialog):
         fb_key = self._FEEDBACK_KEYS.get(key, "settings.feedback.saved")
         text = t(fb_key)
         self._feedback.setText(f"✓ {text}")
-        QTimer.singleShot(2500, lambda: self._feedback.setText(""))
+        self._feedback_timer.start(2500)
         self._refresh_preview_card()
 
     def _save_setting(self, key: str, value: str, setting_type: str = "string") -> None:
@@ -441,13 +477,8 @@ class SettingsDialog(QDialog):
         )
         catalog_urls.setMaximumHeight(72)
         catalog_urls.setMinimumWidth(280)
-
-        def _save_catalog_urls():
-            self._save_setting("remote_catalog_url", catalog_urls.toPlainText().strip())
-
-        catalog_urls.textChanged.connect(
-            lambda: QTimer.singleShot(600, _save_catalog_urls)
-        )
+        self._catalog_urls_editor = catalog_urls
+        catalog_urls.textChanged.connect(self._schedule_catalog_urls_save)
         layout.addWidget(_setting_row(
             "远程目录 URL",
             "专家中心 Skill/专家 清单；可填多个 JSON 地址，启动时合并拉取并缓存 1 小时",
@@ -823,7 +854,7 @@ class SettingsDialog(QDialog):
         TOOL_ICONS = {
             "shell_run": "⚡", "file_read": "📖", "file_write": "✏️",
             "file_list": "📂", "file_delete": "🗑️", "software_launch": "🚀",
-            "open_url": "🌐", "office_word_create": "📄", "office_excel_create": "📊",
+            "open_url": "🌐", "web_search": "🔍", "web_fetch": "📡", "office_word_create": "📄", "office_excel_create": "📊",
             "office_ppt_create": "📑", "code_create": "💻", "keyboard_type": "⌨️",
             "mouse_click": "🖱️", "screen_capture": "📸", "list_apps": "📋", "skill_install": "📦",
         }
@@ -1459,11 +1490,35 @@ class _ModelDialog(QDialog):
         self.api_key = QLineEdit(self.data.get("api_key", ""))
         self.api_key.setEchoMode(QLineEdit.Password)
         self.model_name = QLineEdit(self.data.get("model_name", ""))
-        self.model_name.setPlaceholderText("deepseek-chat")
+        self.model_name.setPlaceholderText("deepseek-v4-pro")
+        from PySide6.QtWidgets import QSpinBox, QDoubleSpinBox
+        self.context_window = QSpinBox()
+        self.context_window.setRange(8192, 2_000_000)
+        self.context_window.setSingleStep(1024)
+        self.context_window.setValue(int(self.data.get("context_window") or 128000))
+        self.max_tokens = QSpinBox()
+        self.max_tokens.setRange(256, 131072)
+        self.max_tokens.setValue(int(self.data.get("max_tokens") or 8192))
+        self.temperature = QDoubleSpinBox()
+        self.temperature.setRange(0.0, 2.0)
+        self.temperature.setSingleStep(0.1)
+        self.temperature.setValue(float(self.data.get("temperature") or 0.7))
+        self.reasoning_effort = QComboBox()
+        self.reasoning_effort.addItems(["", "high", "max"])
+        effort = (self.data.get("reasoning_effort") or "").strip()
+        idx = self.reasoning_effort.findText(effort)
+        self.reasoning_effort.setCurrentIndex(idx if idx >= 0 else 0)
+        self.thinking_enabled = _ToggleSwitch()
+        self.thinking_enabled.setChecked(bool(self.data.get("thinking_enabled", 0)))
         form.addRow("供应商", self.provider)
         form.addRow("API Base", self.api_base)
         form.addRow("API Key", self.api_key)
         form.addRow("Model", self.model_name)
+        form.addRow("上下文窗口 (tokens)", self.context_window)
+        form.addRow("单次输出上限", self.max_tokens)
+        form.addRow("Temperature", self.temperature)
+        form.addRow("Reasoning Effort", self.reasoning_effort)
+        form.addRow("Thinking 模式", self.thinking_enabled)
         layout.addLayout(form)
 
         btns = QHBoxLayout()
@@ -1482,16 +1537,43 @@ class _ModelDialog(QDialog):
         if not preset:
             return
         api_base, model = preset
-        self.provider.setText(name)
+        from core.model_profiles import enrich_model_config, match_model_profile
+
+        profile = match_model_profile(model) or {}
+        self.provider.setText(str(profile.get("provider_name") or name.split("(")[0].strip()))
         self.api_base.setText(api_base)
         self.model_name.setText(model)
+        enriched = enrich_model_config({
+            "model_name": model,
+            "api_base": api_base,
+            "provider_name": self.provider.text().strip(),
+        }) or {}
+        if enriched.get("context_window"):
+            self.context_window.setValue(int(enriched["context_window"]))
+        if enriched.get("max_tokens"):
+            self.max_tokens.setValue(int(enriched["max_tokens"]))
+        if enriched.get("temperature") is not None:
+            self.temperature.setValue(float(enriched["temperature"]))
+        effort = str(enriched.get("reasoning_effort") or "")
+        idx = self.reasoning_effort.findText(effort)
+        if idx >= 0:
+            self.reasoning_effort.setCurrentIndex(idx)
+        self.thinking_enabled.setChecked(bool(enriched.get("thinking_enabled", 0)))
 
     def values(self) -> dict:
         from core.model_client import ModelClient
-        return {
+        from core.model_profiles import enrich_model_config
+
+        base = {
             "provider_name": self.provider.text().strip(),
             "provider_type": "openai_compatible",
             "api_base": ModelClient.normalize_api_base(self.api_base.text().strip()),
             "api_key": self.api_key.text().strip(),
             "model_name": self.model_name.text().strip(),
+            "context_window": int(self.context_window.value()),
+            "max_tokens": int(self.max_tokens.value()),
+            "temperature": float(self.temperature.value()),
+            "reasoning_effort": self.reasoning_effort.currentText().strip(),
+            "thinking_enabled": 1 if self.thinking_enabled.isChecked() else 0,
         }
+        return enrich_model_config(base) or base

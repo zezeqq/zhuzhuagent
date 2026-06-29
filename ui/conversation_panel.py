@@ -20,7 +20,7 @@ from db.database import query_all
 from ui.i18n import t
 from ui.widgets.message_widget import (
     AgentMessage, ArtifactMessage, FollowUpActionMessage, GuideMessage, PermissionRequestMessage,
-    PlanMessage, StepProgressMessage, ToolCallMessage, ToolCallsGroup, UserMessage,
+    PlanMessage, StepProgressMessage, ThinkingBlock, ToolCallMessage, ToolCallsGroup, UserMessage,
     WelcomeWidget, _qobject_alive,
 )
 from ui.widgets.mode_selector import ModeSelector
@@ -186,6 +186,7 @@ class ConversationPanel(QFrame):
         self._current_agent_msg: AgentMessage | None = None
         self._tool_call_count: int = 0
         self._tool_group: ToolCallsGroup | None = None
+        self._thinking_block: ThinkingBlock | None = None
         self._run_placeholder: AgentMessage | None = None
         self._session_auto_approve: bool = False
         self._ui_session_id: int = 0
@@ -201,6 +202,7 @@ class ConversationPanel(QFrame):
         self._is_recording_voice = False
         self._ref_popup: FileReferencePopup | None = None
         self._ref_popup_visible = False
+        self._scroll_scheduled = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -381,6 +383,19 @@ class ConversationPanel(QFrame):
         self._attach_btn = attach_btn
         action_layout.addWidget(attach_btn)
 
+        self._net_btn = QPushButton()
+        self._net_btn.setObjectName("NetworkToggleButton")
+        self._net_btn.setCursor(Qt.PointingHandCursor)
+        self._net_btn.setFixedSize(34, 34)
+        self._net_btn.setCheckable(True)
+        self._net_btn.setFocusPolicy(Qt.StrongFocus)
+        self._net_btn.clicked.connect(self._on_network_clicked)
+        from ui.icons.network_icon import network_toggle_icon, network_toggle_icon_size
+        self._net_btn.setIconSize(network_toggle_icon_size())
+        self._network_icon_fn = network_toggle_icon
+        action_layout.addWidget(self._net_btn)
+        self.sync_network_toggle()
+
         ref_btn = QPushButton("@")
         ref_btn.setObjectName("InputIconButton")
         ref_btn.setToolTip("引用资料库或生成文件")
@@ -492,6 +507,8 @@ class ConversationPanel(QFrame):
         self._stop_btn.setToolTip(t("chat_stop_tip"))
         if hasattr(self, "_attach_btn"):
             self._attach_btn.setToolTip(t("chat_attach_tip"))
+        if hasattr(self, "_net_btn"):
+            self.sync_network_toggle()
         if hasattr(self, "_voice_btn"):
             self._voice_btn.setToolTip("语音输入")
         if hasattr(self, "_mode") and hasattr(self._mode, "retranslate_ui"):
@@ -508,12 +525,16 @@ class ConversationPanel(QFrame):
         self._model_combo.addItem(t("chat_local_search"), {"_local_search": True})
 
         restore_idx = 0
+        from core.model_profiles import enrich_model_config
         models = query_all("SELECT * FROM models WHERE enabled=1 ORDER BY is_default DESC, id DESC")
         for i, m in enumerate(models):
-            self._model_combo.addItem(f"{m['provider_name']} / {m['model_name']}", m)
-            if prev_id and m["id"] == prev_id:
+            enriched = enrich_model_config(dict(m)) or m
+            self._model_combo.addItem(
+                f"{enriched['provider_name']} / {enriched['model_name']}", enriched,
+            )
+            if prev_id and enriched["id"] == prev_id:
                 restore_idx = i + 1
-            elif not prev_id and m.get("is_default"):
+            elif not prev_id and enriched.get("is_default"):
                 restore_idx = i + 1
 
         self._model_combo.setCurrentIndex(restore_idx)
@@ -527,6 +548,9 @@ class ConversationPanel(QFrame):
         model = model_data
         if auto_checked and not isinstance(model, dict):
             model = default_model() or model
+        if isinstance(model, dict):
+            from core.model_profiles import enrich_model_config
+            model = enrich_model_config(dict(model)) or model
         return model, False
 
     def _on_expert_changed(self, index: int) -> None:
@@ -632,6 +656,23 @@ class ConversationPanel(QFrame):
                 except Exception:
                     pass
                 i += 1
+            elif role == "agent_step":
+                thinking_parts: list[str] = []
+                while i < len(messages) and messages[i].get("role") == "agent_step":
+                    try:
+                        data = json.loads(messages[i].get("content", "{}"))
+                        part = (data.get("reasoning_content") or data.get("content") or "").strip()
+                        if part and (not thinking_parts or thinking_parts[-1] != part):
+                            thinking_parts.append(part)
+                    except Exception:
+                        pass
+                    i += 1
+                if thinking_parts:
+                    block = ThinkingBlock()
+                    block.set_text("\n\n".join(thinking_parts))
+                    block.finalize()
+                    self._add_widget(block)
+                continue
             elif role == "tool_call":
                 group = ToolCallsGroup()
                 while i < len(messages) and messages[i].get("role") == "tool_call":
@@ -683,7 +724,7 @@ class ConversationPanel(QFrame):
         if getattr(worker, "_dna_connected", False):
             return
         worker.tool_call.connect(lambda ev, w=worker: self._handle_tool_call(ev, w))
-        worker.thinking.connect(lambda content, w=worker: self._handle_thinking(content, w))
+        worker.assistant_step.connect(lambda ev, w=worker: self._handle_assistant_step(ev, w))
         worker.token.connect(lambda tok, w=worker: self._handle_token(tok, w))
         worker.plan_ready.connect(lambda plan, w=worker: self._handle_plan_ready(plan, w))
         worker.task_started.connect(lambda tid, w=worker: self._handle_task_started(tid, w))
@@ -747,6 +788,27 @@ class ConversationPanel(QFrame):
             self.task_created.emit(task_id)
             self.files_changed.emit()
 
+    def _handle_assistant_step(self, message: dict, worker: AgentWorker) -> None:
+        conv_id = worker.conversation_id
+        if conv_id and message:
+            add_message(
+                conv_id,
+                "agent_step",
+                json.dumps(message, ensure_ascii=False),
+            )
+
+        if not self._is_viewing(conv_id) or worker is not self._worker:
+            return
+
+        preview = (
+            (message.get("reasoning_content") or message.get("content") or "")
+            .strip()
+        )
+        if preview:
+            block = self._ensure_thinking_block(self._run_placeholder)
+            block.append_text(preview)
+            self._scroll_to_bottom()
+
     def _handle_tool_call(self, event: dict, worker: AgentWorker) -> None:
         conv_id = worker.conversation_id
         name = event.get("name", "")
@@ -754,8 +816,13 @@ class ConversationPanel(QFrame):
         result = event.get("result", "")
 
         if conv_id:
+            from core.context_builder import clip_tool_result_for_storage
+
             add_message(conv_id, "tool_call", json.dumps({
-                "name": name, "args": args, "result": result[:1000],
+                "id": event.get("id") or "",
+                "name": name,
+                "args": args,
+                "result": clip_tool_result_for_storage(result),
             }, ensure_ascii=False))
             self._run_tool_counts[conv_id] = self._run_tool_counts.get(conv_id, 0) + 1
 
@@ -768,20 +835,6 @@ class ConversationPanel(QFrame):
         self._tool_call_count = self._run_tool_counts.get(conv_id, 0)
         group = self._ensure_tool_group(self._run_placeholder)
         group.add_tool(name, args, result)
-        self._scroll_to_bottom()
-
-    def _handle_thinking(self, content: str, worker: AgentWorker) -> None:
-        if not (content or "").strip():
-            return
-        conv_id = worker.conversation_id
-        if conv_id:
-            add_message(conv_id, "assistant", content)
-        if not self._is_viewing(conv_id) or worker is not self._worker:
-            return
-        self._hide_run_placeholder(self._run_placeholder)
-        msg = AgentMessage(content)
-        self._add_widget(msg)
-        self._current_agent_msg = msg
         self._scroll_to_bottom()
 
     def _handle_final_reply(self, reply: str, worker: AgentWorker) -> None:
@@ -810,6 +863,7 @@ class ConversationPanel(QFrame):
             elif text:
                 self._append_assistant_message(text, conv_id, self._run_placeholder, save_db=False)
             self._tool_group = None
+            self._thinking_block = None
             self._run_placeholder = None
             self._set_busy(False)
             from core.settings_runtime import play_notification_sound, try_extract_chat_memory
@@ -818,20 +872,21 @@ class ConversationPanel(QFrame):
             self._scroll_to_bottom()
             return
 
+        if self._thinking_block:
+            self._thinking_block.finalize()
+
         if self._tool_group:
             self._tool_group.finalize()
             self._tool_group.set_collapsed(True)
 
         if text and len(text) > 5:
-            if self._current_agent_msg and not _is_placeholder_message(self._current_agent_msg):
-                self._current_agent_msg.set_text(text)
-                self._hide_run_placeholder(self._run_placeholder)
-            else:
-                self._append_assistant_message(text, conv_id, self._run_placeholder, save_db=False)
+            self._finalize_assistant_text(text, conv_id, self._run_placeholder, save_db=False)
         elif tool_count > 0:
-            self._append_assistant_message("✅ 任务已完成。", conv_id, self._run_placeholder, save_db=False)
+            self._finalize_assistant_text("✅ 任务已完成。", conv_id, self._run_placeholder, save_db=False)
         else:
-            self._append_assistant_message(text or "✅ 任务已完成。", conv_id, self._run_placeholder, save_db=False)
+            self._finalize_assistant_text(text or "✅ 任务已完成。", conv_id, self._run_placeholder, save_db=False)
+
+        self._current_agent_msg = None
 
         mode = self._mode.current_mode()
         # 仅在本轮实际调用过工具（多步任务进行中）且明确询问是否继续执行时，才展示确认条
@@ -849,6 +904,7 @@ class ConversationPanel(QFrame):
                 self._add_widget(follow)
 
         self._tool_group = None
+        self._thinking_block = None
         self._run_placeholder = None
         self._set_busy(False)
         if tool_count > 0:
@@ -872,6 +928,9 @@ class ConversationPanel(QFrame):
             self._tool_group.finalize()
             self._tool_group.set_collapsed(True)
             self._tool_group = None
+        if self._thinking_block:
+            self._thinking_block.finalize()
+            self._thinking_block = None
 
         self._append_assistant_message(f"❌ 错误：{error}", conv_id, self._run_placeholder, save_db=False)
         self._run_placeholder = None
@@ -1097,6 +1156,7 @@ class ConversationPanel(QFrame):
         self._set_busy(True)
         self._tool_call_count = 0
         self._tool_group = None
+        self._thinking_block = None
         self._current_agent_msg = None
         if conv_id:
             self._run_tool_counts[conv_id] = 0
@@ -1244,6 +1304,22 @@ class ConversationPanel(QFrame):
         if placeholder and _qobject_alive(placeholder) and _is_placeholder_message(placeholder):
             placeholder.setVisible(False)
 
+    def _finalize_assistant_text(
+        self,
+        text: str,
+        conv_id: int | None,
+        placeholder: AgentMessage | None,
+        *,
+        save_db: bool = False,
+    ) -> None:
+        """写入正式回答；若 token 流已创建气泡则复用，避免重复显示。"""
+        display = (text or "").strip() or "✅ 任务已完成。"
+        self._hide_run_placeholder(placeholder)
+        if self._current_agent_msg and not _is_placeholder_message(self._current_agent_msg):
+            self._current_agent_msg.set_text(display)
+            return
+        self._append_assistant_message(display, conv_id, None, save_db=save_db)
+
     def _append_assistant_message(
         self,
         content: str,
@@ -1262,6 +1338,13 @@ class ConversationPanel(QFrame):
         self._add_widget(msg)
         self._current_agent_msg = msg
         return msg
+
+    def _ensure_thinking_block(self, placeholder: AgentMessage | None) -> ThinkingBlock:
+        if self._thinking_block is None:
+            self._hide_run_placeholder(placeholder)
+            self._thinking_block = ThinkingBlock()
+            self._add_widget(self._thinking_block)
+        return self._thinking_block
 
     def _ensure_tool_group(self, placeholder: AgentMessage | None) -> ToolCallsGroup:
         if self._tool_group is None:
@@ -1316,9 +1399,15 @@ class ConversationPanel(QFrame):
         self._run_placeholder = None
 
     def _scroll_to_bottom(self) -> None:
-        QTimer.singleShot(50, lambda: self._scroll.verticalScrollBar().setValue(
-            self._scroll.verticalScrollBar().maximum()
-        ))
+        if self._scroll_scheduled:
+            return
+        self._scroll_scheduled = True
+        QTimer.singleShot(80, self._do_scroll_to_bottom)
+
+    def _do_scroll_to_bottom(self) -> None:
+        self._scroll_scheduled = False
+        bar = self._scroll.verticalScrollBar()
+        bar.setValue(bar.maximum())
 
     def _set_busy(self, busy: bool) -> None:
         self._send_btn.set_busy(busy)
@@ -1427,6 +1516,36 @@ class ConversationPanel(QFrame):
             win = self.window()
             if win and hasattr(win, "apply_settings"):
                 win.apply_settings("workspace_path")
+
+    def sync_network_toggle(self) -> None:
+        from core.settings_store import get_bool
+
+        if not hasattr(self, "_net_btn"):
+            return
+        self._apply_network_btn_state(get_bool("allow_network", True))
+
+    def _apply_network_btn_state(self, enabled: bool) -> None:
+        if not hasattr(self, "_net_btn"):
+            return
+        self._net_btn.blockSignals(True)
+        self._net_btn.setChecked(enabled)
+        self._net_btn.setText("")
+        self._net_btn.setIcon(self._network_icon_fn(enabled=enabled))
+        self._net_btn.setProperty("networkOn", "true" if enabled else "false")
+        self._net_btn.setToolTip(t("chat_network_on_tip" if enabled else "chat_network_off_tip"))
+        self._repolish(self._net_btn)
+        self._net_btn.blockSignals(False)
+
+    def _on_network_clicked(self) -> None:
+        from core.settings_store import set_bool
+
+        enabled = self._net_btn.isChecked()
+        set_bool("allow_network", enabled)
+        self._apply_network_btn_state(enabled)
+        self._show_status(
+            t("chat_network_on_status" if enabled else "chat_network_off_status"),
+            2500,
+        )
 
     def _toggle_permission(self) -> None:
         if self._perm_btn.isChecked():

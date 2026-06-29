@@ -80,7 +80,6 @@ class MainWindow(QMainWindow):
         self._refresh_status()
 
         self._connect_signals()
-        self.apply_settings()
 
     def apply_settings(self, changed_key: str = "") -> None:
         from PySide6.QtWidgets import QApplication
@@ -103,6 +102,8 @@ class MainWindow(QMainWindow):
                     QTimer.singleShot(0, self._refresh_status)
                 threading.Thread(target=_mcp, daemon=True).start()
         self._conversation._load_models()
+        if changed_key in ("", "allow_network"):
+            self._conversation.sync_network_toggle()
 
     def _build_menu_bar(self) -> TitleBarFrame:
         bar = TitleBarFrame(self)
@@ -182,6 +183,8 @@ class MainWindow(QMainWindow):
         self._results.setVisible(show_results)
         if page_key == "project":
             self._project_page.refresh()
+        elif page_key == "expert":
+            self._expert_center._ensure_startup_catalog()
 
     def _on_sub_page(self, sub_key: str) -> None:
         if sub_key == "mcp":

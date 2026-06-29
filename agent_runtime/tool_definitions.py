@@ -158,6 +158,56 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "web_search",
+            "description": (
+                "在互联网上搜索最新信息。用于实时新闻、排行榜、标准更新、价格、"
+                "公开数据等资料库中没有的内容。返回标题、链接与摘要；"
+                "需要正文时可再调用 web_fetch。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "搜索关键词，尽量具体，例如 'LMSYS Chatbot Arena leaderboard 2026'",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "返回条数，默认 8，最大 12",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_fetch",
+            "description": (
+                "抓取指定 URL 的网页正文（HTML 转文本）。"
+                "用于阅读搜索结果链接、官方文档、新闻详情等。"
+                "不能用于需要登录的页面。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "http/https 网址",
+                    },
+                    "max_chars": {
+                        "type": "integer",
+                        "description": "最大返回字符数，默认 12000",
+                    },
+                },
+                "required": ["url"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "open_url",
             "description": "在用户默认浏览器中打开指定 URL。不要用来替代本地桌面软件（如用网页版酷狗代替酷狗客户端）。",
             "parameters": {
@@ -196,12 +246,16 @@ TOOLS: list[dict] = [
                             "required": ["heading", "body"],
                         },
                     },
+                    "content": {
+                        "type": "string",
+                        "description": "无章节结构时的完整正文（与 sections 二选一）",
+                    },
                     "filename": {
                         "type": "string",
                         "description": "输出文件名，例如 'report.docx'",
                     },
                 },
-                "required": ["title", "sections", "filename"],
+                "required": ["title", "filename"],
             },
         },
     },
@@ -230,12 +284,30 @@ TOOLS: list[dict] = [
                         },
                         "description": "数据行，每行是一个数组",
                     },
+                    "sheets": {
+                        "type": "array",
+                        "description": "多工作表时使用；每项含 title/name、headers、rows",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "title": {"type": "string"},
+                                "headers": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
+                                "rows": {
+                                    "type": "array",
+                                    "items": {"type": "array", "items": {}},
+                                },
+                            },
+                        },
+                    },
                     "filename": {
                         "type": "string",
                         "description": "输出文件名，例如 'data.xlsx'",
                     },
                 },
-                "required": ["title", "headers", "rows", "filename"],
+                "required": ["filename"],
             },
         },
     },
@@ -589,6 +661,8 @@ TOOL_RISK_LEVELS: dict[str, str] = {
     "software_launch": "medium",
     "find_application": "low",
     "open_url": "low",
+    "web_search": "low",
+    "web_fetch": "low",
     "office_word_create": "low",
     "office_excel_create": "low",
     "office_ppt_create": "low",

@@ -51,6 +51,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE file_chunks ADD COLUMN embedding_json TEXT")
     if "embedding_model" not in chunk_cols:
         conn.execute("ALTER TABLE file_chunks ADD COLUMN embedding_model TEXT")
+    model_cols = {row["name"] for row in conn.execute("PRAGMA table_info(models)").fetchall()}
+    model_migrations = {
+        "context_window": "ALTER TABLE models ADD COLUMN context_window INTEGER DEFAULT 128000",
+        "thinking_enabled": "ALTER TABLE models ADD COLUMN thinking_enabled INTEGER DEFAULT 0",
+        "reasoning_effort": "ALTER TABLE models ADD COLUMN reasoning_effort TEXT DEFAULT ''",
+    }
+    for column, sql in model_migrations.items():
+        if column not in model_cols:
+            conn.execute(sql)
 
 
 def execute(sql: str, params: tuple | list = ()) -> int:

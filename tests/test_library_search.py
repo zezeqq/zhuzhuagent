@@ -49,3 +49,35 @@ def test_keyword_search_hits_db_chunk(app_tmp, sample_project):
     hits = search_chunks("机电工程", project_id=sample_project["id"], limit=3)
     assert hits
     assert "机电" in hits[0].get("content", "")
+
+
+def test_finance_query_filters_highway_income_noise(app_tmp, sample_project):
+    from db.database import insert
+    from rag.retriever import search_chunks
+
+    insert(
+        "file_chunks",
+        {
+            "project_id": sample_project["id"],
+            "content": "打印报表功能测试：通行费收入的班次日月年报表",
+            "keywords": "收费,报表",
+            "source_type": "file",
+        },
+    )
+    insert(
+        "file_chunks",
+        {
+            "project_id": sample_project["id"],
+            "content": "财务分析模板：收入、成本、利润与预算说明",
+            "keywords": "财务,分析,模板",
+            "source_type": "file",
+        },
+    )
+    hits = search_chunks(
+        "财务分析模板 收入 成本 利润",
+        project_id=sample_project["id"],
+        limit=3,
+        use_vector=False,
+    )
+    assert hits
+    assert "财务" in hits[0].get("content", "")

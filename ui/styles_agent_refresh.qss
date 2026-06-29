@@ -1057,6 +1057,38 @@ QHeaderView::section {
     padding: 0;
     min-height: 20px;
 }
+#ThinkingBlock {
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_MD;
+    margin: 4px 0;
+}
+#ThinkingBlockHeader {
+    background: transparent;
+    border: none;
+    min-height: 34px;
+}
+#ThinkingBlockHeader:hover {
+    background-color: @HOVER;
+    border-radius: @RADIUS_MD @RADIUS_MD 0 0;
+}
+#ThinkingBlockSummary {
+    color: @MUTED;
+    font-size: 12px;
+    font-weight: 650;
+}
+#ThinkingBlockChevron {
+    color: @WEAK;
+    font-size: 11px;
+}
+#ThinkingBlockBody {
+    border-top: 1px solid @BORDER;
+}
+#ThinkingBlockText {
+    color: @WEAK;
+    font-size: 12px;
+    line-height: 1.5;
+}
 #ToolCallsLiveStrip {
     background: transparent;
     border: none;
@@ -1606,14 +1638,14 @@ QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
 }
 
 #InputActionGroup {
-    min-width: 250px;
-    max-width: 280px;
+    min-width: 288px;
+    max-width: 318px;
     min-height: 50px;
     max-height: 50px;
     background: transparent;
 }
 
-#InputIconButton, #VoiceButton {
+#InputIconButton, #VoiceButton, #NetworkToggleButton {
     min-width: 34px;
     max-width: 34px;
     min-height: 34px;
@@ -1626,10 +1658,32 @@ QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
     font-weight: 800;
 }
 
-#InputIconButton:hover, #VoiceButton:hover {
+#InputIconButton:hover, #VoiceButton:hover, #NetworkToggleButton:hover {
     color: @TEXT;
     background-color: @HOVER;
     border-color: @BORDER;
+}
+
+#NetworkToggleButton {
+    min-width: 34px;
+    max-width: 34px;
+    min-height: 34px;
+    max-height: 34px;
+    border-radius: 17px;
+    padding: 0;
+    icon-size: 18px;
+}
+
+#NetworkToggleButton[networkOn="true"],
+#NetworkToggleButton:checked {
+    background-color: @ACCENT_SOFT;
+    border: 1px solid @BLUE_MUTED;
+}
+
+#NetworkToggleButton[networkOn="false"],
+#NetworkToggleButton:!checked {
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
 }
 
 #VoiceButton[recording="true"] {

@@ -50,7 +50,12 @@ def test_plan_mode_emits_plan_ready(app_tmp, sample_project, monkeypatch):
     assert "查资料" in plan_events[0]["content"]
 
 
-def test_craft_mode_rule_plan_runs_office(app_tmp, sample_project):
+def test_craft_mode_uses_llm_tool_loop(app_tmp, sample_project, monkeypatch):
+    def _fake_tool_loop(self, **kwargs):
+        yield {"type": "tool_call", "name": "office_ppt_create", "args": {}, "result": "ok"}
+        yield {"type": "final_reply", "content": "PPT 已生成"}
+
+    monkeypatch.setattr(Agent, "_run_tool_loop", _fake_tool_loop)
     agent = Agent()
     events = list(
         agent.run(
@@ -62,7 +67,9 @@ def test_craft_mode_rule_plan_runs_office(app_tmp, sample_project):
     )
     types = [e["type"] for e in events]
     assert "task_started" in types
-    assert "tool_call" in types or "final_reply" in types
+    assert "tool_call" in types
+    assert "final_reply" in types
+    assert "error" not in types
 
 
 def test_ask_system_prompt_has_no_tools_suffix(app_tmp, sample_project):

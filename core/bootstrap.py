@@ -12,7 +12,7 @@ PROVIDERS = [
     ("百度千帆", "https://qianfan.baidubce.com/v2", "ernie-4.0-turbo-8k"),
     ("智谱 GLM", "https://open.bigmodel.cn/api/paas/v4", "glm-4-flash"),
     ("Moonshot Kimi", "https://api.moonshot.cn/v1", "moonshot-v1-8k"),
-    ("DeepSeek", "https://api.deepseek.com", "deepseek-chat"),
+    ("DeepSeek", "https://api.deepseek.com", "deepseek-v4-pro"),
     ("火山方舟/豆包", "https://ark.cn-beijing.volces.com/api/v3", "doubao-lite"),
     ("讯飞星火", "", "spark"),
     ("MiniMax", "https://api.minimax.chat/v1", "abab6.5s-chat"),
@@ -47,20 +47,32 @@ SOFTWARE = ["VS Code", "PyCharm", "Keil uVision", "Chrome", "Edge", "Word", "Exc
 
 
 def bootstrap_seed_data() -> None:
+    existing_models = {
+        (r["provider_name"], r["model_name"])
+        for r in query_all("SELECT provider_name, model_name FROM models")
+    }
     for provider, api_base, model_name in PROVIDERS:
-        if not query_one("SELECT id FROM models WHERE provider_name=? AND model_name=?", (provider, model_name)):
+        if (provider, model_name) not in existing_models:
             insert("models", {
                 "provider_name": provider,
                 "provider_type": "openai_compatible",
                 "api_base": api_base,
                 "api_key": "",
                 "model_name": model_name,
+                "temperature": 1.0 if "deepseek-v4" in model_name else 0.7,
+                "max_tokens": 8192 if "deepseek-v4" in model_name else 2000,
+                "context_window": 1_000_000 if "deepseek-v4" in model_name else 128000,
+                "thinking_enabled": 1 if "deepseek-v4" in model_name else 0,
+                "reasoning_effort": "max" if "deepseek-v4" in model_name else "",
                 "enabled": 0,
                 "is_default": 0,
-                "remark": "内置模板，请填写 API Key 后启用" if api_base else "预留模板",
+                "remark": "DeepSeek V4 Pro · 请填写 API Key 后启用" if model_name == "deepseek-v4-pro"
+                else ("内置模板，请填写 API Key 后启用" if api_base else "预留模板"),
             })
+
+    existing_skills = {r["skill_name"] for r in query_all("SELECT skill_name FROM skills")}
     for name, display, desc, risk, func in SKILLS:
-        if not query_one("SELECT id FROM skills WHERE skill_name=?", (name,)):
+        if name not in existing_skills:
             insert("skills", {
                 "skill_name": name,
                 "display_name": display,
@@ -71,8 +83,10 @@ def bootstrap_seed_data() -> None:
                 "enabled": 1,
                 "function_path": func,
             })
+
+    existing_software = {r["software_name"] for r in query_all("SELECT software_name FROM software_tools")}
     for tool in SOFTWARE:
-        if not query_one("SELECT id FROM software_tools WHERE software_name=?", (tool,)):
+        if tool not in existing_software:
             insert("software_tools", {
                 "software_name": tool,
                 "software_type": "preset",
@@ -88,6 +102,11 @@ def bootstrap_seed_data() -> None:
     try:
         from core.remote_catalog import ensure_catalog_url_configured
         ensure_catalog_url_configured()
+    except Exception:
+        pass
+    try:
+        from core.ensure_deepseek_v4 import ensure_deepseek_v4_default
+        ensure_deepseek_v4_default()
     except Exception:
         pass
     if not query_all("SELECT id FROM workflows LIMIT 1"):
