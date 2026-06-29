@@ -132,6 +132,34 @@ class ModelClient:
         except Exception as exc:
             raise ModelClientError(f"流式调用失败：{exc}") from exc
 
+    def transcribe_audio(self, audio_path: str, model_config: dict, transcription_model: str = "whisper-1") -> str:
+        """Transcribe a local audio file through an OpenAI-compatible audio endpoint."""
+        api_key, api_base, _ = self._validate(model_config)
+        headers = {"Authorization": f"Bearer {api_key}"}
+        try:
+            with open(audio_path, "rb") as audio:
+                files = {"file": (audio_path.split("\\")[-1], audio, "audio/wav")}
+                data = {"model": transcription_model}
+                resp = self._client().post(
+                    f"{api_base}/audio/transcriptions",
+                    headers=headers,
+                    data=data,
+                    files=files,
+                    timeout=180,
+                )
+            if resp.status_code != 200:
+                try:
+                    detail = resp.json().get("error", {}).get("message", resp.text[:500])
+                except Exception:
+                    detail = resp.text[:500]
+                raise ModelClientError(f"语音转写失败（{resp.status_code}）：{detail}")
+            payload = resp.json()
+            return (payload.get("text") or "").strip()
+        except ModelClientError:
+            raise
+        except Exception as exc:
+            raise ModelClientError(f"语音转写失败：{exc}") from exc
+
     @staticmethod
     def normalize_api_base(api_base: str) -> str:
         """Fix common API Base mistakes (e.g. Moonshot missing /v1)."""

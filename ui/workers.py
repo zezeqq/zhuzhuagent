@@ -29,6 +29,7 @@ class AgentWorker(QThread):
         full_access: bool = False,
         history: list[dict] | None = None,
         attachments: list[str] | None = None,
+        referenced_files: list[str] | None = None,
         conversation_id: int | None = None,
         auto_approve: bool = False,
         *,
@@ -46,6 +47,7 @@ class AgentWorker(QThread):
         self.full_access = full_access
         self.history = history or []
         self.attachments = attachments or []
+        self.referenced_files = referenced_files or []
         self.conversation_id = conversation_id
         self.local_search_only = local_search_only
         self.plan_execute = plan_execute
@@ -91,6 +93,7 @@ class AgentWorker(QThread):
                 full_access=self.full_access or self._approve_all_remaining,
                 history=self.history,
                 attachments=self.attachments,
+                referenced_files=self.referenced_files,
                 request_permission=perm_fn,
                 local_search_only=self.local_search_only,
                 plan_execute=self.plan_execute,
@@ -195,3 +198,27 @@ class ExpertTeamWorker(QThread):
         except Exception as exc:
             if not self._cancelled:
                 self.error.emit(str(exc))
+
+
+class VoiceTranscribeWorker(QThread):
+    transcribed = Signal(str)
+    error = Signal(str)
+
+    def __init__(self, audio_path: str, model: dict | None):
+        super().__init__()
+        self.audio_path = audio_path
+        self.model = model
+
+    def run(self) -> None:
+        try:
+            if not self.model:
+                self.error.emit("语音输入需要先选择一个已配置 API Key 的在线模型。")
+                return
+            from core.model_client import ModelClient
+            text = ModelClient().transcribe_audio(self.audio_path, self.model)
+            if text:
+                self.transcribed.emit(text)
+            else:
+                self.error.emit("没有识别到语音内容。")
+        except Exception as exc:
+            self.error.emit(str(exc))

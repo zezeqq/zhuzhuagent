@@ -6,31 +6,31 @@ from pathlib import Path
 
 
 class DarkPalette:
-    """Premium agent dark — warm charcoal, soft contrast, Cursor/Linear-inspired."""
-    BG = "#131316"
-    SIDEBAR = "#0E0E11"
-    SURFACE = "#18181D"
-    CARD = "#1D1D24"
-    CARD_HOVER = "#26262F"
-    BORDER = "#2C2C38"
-    BORDER_LIGHT = "#3A3A48"
-    TEXT = "#EDEDF2"
-    MUTED = "#9B9BA8"
-    WEAK = "#6B6B78"
-    BLUE = "#6B93FF"
-    BLUE_HOVER = "#5684FF"
-    BLUE_MUTED = "#1E2A4A"
-    INDIGO = "#8B7CF6"
-    ACCENT = "#6B93FF"
-    ACCENT_SOFT = "#252540"
-    SUCCESS = "#34D399"
-    WARNING = "#FBBF24"
-    DANGER = "#F87171"
-    HOVER = "#22222A"
-    SELECTED = "#3D5AFE"
-    INPUT = "#16161A"
-    TOOLBAR = "#141418"
-    GLOW = "rgba(107, 147, 255, 0.35)"
+    """Soft premium dark — charcoal surfaces, crisp text, restrained agent accents."""
+    BG = "#101114"
+    SIDEBAR = "#0B0C0F"
+    SURFACE = "#171920"
+    CARD = "#1C1F27"
+    CARD_HOVER = "#242833"
+    BORDER = "#2A2E3A"
+    BORDER_LIGHT = "#3A4050"
+    TEXT = "#F7F8FB"
+    MUTED = "#C2C8D4"
+    WEAK = "#8790A3"
+    BLUE = "#7AA2FF"
+    BLUE_HOVER = "#93B5FF"
+    BLUE_MUTED = "#213252"
+    INDIGO = "#A18CFF"
+    ACCENT = "#7AA2FF"
+    ACCENT_SOFT = "#222B3F"
+    SUCCESS = "#5EE0B7"
+    WARNING = "#F6C76B"
+    DANGER = "#FF7E8A"
+    HOVER = "#222631"
+    SELECTED = "#476FFF"
+    INPUT = "#151821"
+    TOOLBAR = "#12141A"
+    GLOW = "rgba(122, 162, 255, 0.32)"
 
 
 class Palette(DarkPalette):
@@ -39,30 +39,30 @@ class Palette(DarkPalette):
 
 
 class LightPalette:
-    """Warm light — editorial cream tones."""
-    BG = "#F4F3EF"
-    SIDEBAR = "#FAFAF8"
+    """Soft light — clean workstation surfaces without harsh white glare."""
+    BG = "#F6F7F9"
+    SIDEBAR = "#FFFFFF"
     SURFACE = "#FFFFFF"
     CARD = "#FFFFFF"
-    CARD_HOVER = "#F5F4F0"
-    BORDER = "#E4E3DE"
-    BORDER_LIGHT = "#D5D4CF"
-    TEXT = "#1C1B18"
-    MUTED = "#6B6960"
-    WEAK = "#9C9890"
-    BLUE = "#4F7DF5"
-    BLUE_HOVER = "#3D6FE8"
-    BLUE_MUTED = "#E8EEFC"
-    INDIGO = "#6D5CE7"
-    ACCENT = "#4F7DF5"
-    ACCENT_SOFT = "#EDE9FE"
+    CARD_HOVER = "#F1F4F8"
+    BORDER = "#E0E5EE"
+    BORDER_LIGHT = "#CBD3E1"
+    TEXT = "#171A21"
+    MUTED = "#5F6877"
+    WEAK = "#8D96A6"
+    BLUE = "#416FF4"
+    BLUE_HOVER = "#2E5FEA"
+    BLUE_MUTED = "#E8EEFF"
+    INDIGO = "#7765E8"
+    ACCENT = "#416FF4"
+    ACCENT_SOFT = "#EEF3FF"
     SUCCESS = "#059669"
     WARNING = "#D97706"
     DANGER = "#DC2626"
-    HOVER = "#EEEDEA"
+    HOVER = "#EDF1F7"
     SELECTED = "#4F7DF5"
     INPUT = "#FFFFFF"
-    TOOLBAR = "#FAFAF8"
+    TOOLBAR = "#FBFCFE"
     GLOW = "rgba(79, 125, 245, 0.25)"
 
 
@@ -74,11 +74,11 @@ def apply_theme_palette(theme_name: str) -> None:
 
 
 class Radius:
-    XS = 6
-    SM = 10
-    MD = 14
-    LG = 18
-    XL = 22
+    XS = 8
+    SM = 12
+    MD = 16
+    LG = 20
+    XL = 26
     PILL = 999
 
 

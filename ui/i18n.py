@@ -34,7 +34,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "new_task": "＋  新建任务",
         "search_tasks": "搜索任务…",
         "task_section": "任务",
-        "default_user": "DNA 用户",
+        "default_user": "🐷🐷Buddy 用户",
         # --- 对话 ---
         "chat_model": "模型",
         "chat_input_placeholder": "今天想让我做些什么？拖拽图片/音频到此处，或点击 ＋ 附加文件",
@@ -176,7 +176,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "new_task": "＋  New Task",
         "search_tasks": "Search tasks…",
         "task_section": "Tasks",
-        "default_user": "DNA User",
+        "default_user": "🐷🐷Buddy User",
         "chat_model": "Model",
         "chat_input_placeholder": "What would you like me to do today? Drop images/audio here, or click + to attach",
         "chat_auto": "🤖 Auto",

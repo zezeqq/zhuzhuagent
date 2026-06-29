@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from db.database import query_all
+from db.database import query_all, query_one
 from rag.embeddings import cosine_similarity, embed_from_json, embed_text
 from utils.text_utils import keywords_from_query
 
@@ -16,7 +16,8 @@ def _keyword_search(query: str, project_id: int | None, include_standards: bool,
         params.extend([f"%{word}%", f"%{word}%"])
     sql = f"SELECT * FROM file_chunks WHERE ({' OR '.join(clauses)})"
     if project_id:
-        sql += " AND (project_id=? OR source_type='standard')"
+        # 当前项目文件 + 未绑项目的全局资料库 + 标准库
+        sql += " AND (project_id=? OR project_id IS NULL OR source_type='standard')"
         params.append(project_id)
     elif include_standards:
         sql += " AND (source_type='file' OR source_type='standard')"
@@ -32,7 +33,7 @@ def _vector_search(query: str, project_id: int | None, include_standards: bool, 
     params: list = []
     sql = "SELECT * FROM file_chunks WHERE embedding_json IS NOT NULL AND embedding_json != ''"
     if project_id:
-        sql += " AND (project_id=? OR source_type='standard')"
+        sql += " AND (project_id=? OR project_id IS NULL OR source_type='standard')"
         params.append(project_id)
     elif include_standards:
         sql += " AND (source_type='file' OR source_type='standard')"
@@ -48,6 +49,19 @@ def _vector_search(query: str, project_id: int | None, include_standards: bool, 
     return [r for _, r in scored[:limit]]
 
 
+def _enrich_chunk(row: dict) -> dict:
+    enriched = dict(row)
+    file_id = enriched.get("file_id")
+    if file_id:
+        file_row = query_one("SELECT file_name, file_path FROM files WHERE id=?", (file_id,))
+        if file_row:
+            enriched["file_name"] = file_row.get("file_name", "")
+            enriched["file_path"] = file_row.get("file_path", "")
+    elif enriched.get("source_type") == "standard" and enriched.get("standard_code"):
+        enriched["file_name"] = enriched["standard_code"]
+    return enriched
+
+
 def search_chunks(
     query: str,
     project_id: int | None = None,
@@ -61,5 +75,5 @@ def search_chunks(
     for row in vector_hits + keyword_hits:
         rid = row.get("id")
         if rid is not None and rid not in merged:
-            merged[rid] = row
+            merged[rid] = _enrich_chunk(row)
     return list(merged.values())[:limit]

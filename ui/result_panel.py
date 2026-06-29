@@ -164,7 +164,7 @@ class ResultPanel(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("ResultPanel")
-        self.setMinimumWidth(300)
+        self.setMinimumWidth(340)
         self._task_id: int | None = None
         self._conversation_id: int | None = None
         self._workspace: str = ""
@@ -178,7 +178,7 @@ class ResultPanel(QFrame):
 
         tab_bar = QFrame()
         tab_bar.setObjectName("ResultTabBar")
-        tab_bar.setFixedHeight(40)
+        tab_bar.setFixedHeight(44)
         tab_layout = QHBoxLayout(tab_bar)
         tab_layout.setContentsMargins(8, 0, 8, 0)
         tab_layout.setSpacing(0)
@@ -378,11 +378,14 @@ class ResultPanel(QFrame):
 
     def set_conversation(self, conv_id: int | None) -> None:
         self._conversation_id = conv_id
+        self._current_preview_path = ""
         if conv_id:
             from core.task_tracker import latest_task_for_conversation
             task = latest_task_for_conversation(conv_id)
             self._task_id = task["id"] if task else None
-        self._refresh_changes()
+        else:
+            self._task_id = None
+        self.refresh_file_views()
 
     # -- artifacts -------------------------------------------------------------
 
@@ -394,7 +397,11 @@ class ResultPanel(QFrame):
                 item.widget().deleteLater()
         artifacts = list_artifacts()
         if self._task_id:
-            artifacts = [a for a in artifacts if a.get("task_id") == self._task_id]
+            task_artifacts = [a for a in artifacts if a.get("task_id") == self._task_id]
+            if task_artifacts:
+                artifacts = task_artifacts
+            else:
+                artifacts = [a for a in artifacts if not a.get("task_id")]
         for art in artifacts:
             card = self._artifact_card(art)
             card.set_multi_select_mode(self._artifact_multi_mode)

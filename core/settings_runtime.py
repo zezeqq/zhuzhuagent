@@ -269,7 +269,7 @@ def _apply_main_window_settings(window: QMainWindow) -> None:
     if hasattr(window, "_results"):
         window._results.set_workspace(ws)
 
-    user = get_setting("user_name", "").strip() or "DNA 用户"
+    user = get_setting("user_name", "").strip() or "🐷🐷Buddy 用户"
     if hasattr(window, "_sidebar") and hasattr(window._sidebar, "set_user_name"):
         window._sidebar.set_user_name(user)
 

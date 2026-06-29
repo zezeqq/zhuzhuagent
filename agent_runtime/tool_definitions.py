@@ -527,6 +527,39 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "library_list",
+            "description": "列出用户资料库中已导入并索引的文档（data/uploads，不是 exports 产物目录）。",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "library_search",
+            "description": "在资料库与标准库的向量索引中检索与用户问题相关的段落。用户问资料库/标准/上传文档内容时优先使用。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "检索关键词或自然语言问题",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "返回片段数量，默认 6",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "image_analyze",
             "description": "分析一张图片的内容。可以识别图片中的文字(OCR)、物体、场景、图表等。传入图片路径即可。",
             "parameters": {
@@ -570,6 +603,8 @@ TOOL_RISK_LEVELS: dict[str, str] = {
     "screen_capture": "low",
     "skill_install": "medium",
     "image_analyze": "low",
+    "library_list": "low",
+    "library_search": "low",
 }
 
 

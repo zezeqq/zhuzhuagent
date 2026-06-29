@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy,
@@ -437,6 +437,80 @@ class FollowUpActionMessage(QFrame):
         self.chosen.emit(choice)
 
 
+TOOL_ICONS: dict[str, str] = {
+    "shell_run": "⚡", "file_read": "📖", "file_write": "✏️",
+    "file_list": "📂", "file_delete": "🗑️", "software_launch": "🚀",
+    "open_url": "🌐", "office_word_create": "📄", "office_excel_create": "📊",
+    "office_ppt_create": "📑", "code_create": "💻", "keyboard_type": "⌨️",
+    "hotkey_press": "🎹", "window_focus": "🪟", "list_apps": "📋",
+    "ui_locate": "🎯", "ui_click": "👆",
+    "mouse_click": "🖱️",     "screen_capture": "📸", "skill_install": "📦",
+    "library_list": "📚", "library_search": "🔎",
+}
+
+
+class _MarqueeLabel(QLabel):
+    """Single-line label; scrolls long tool summaries when collapsed."""
+
+    _GAP = "    "
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("ToolCallsLiveText")
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setFixedHeight(20)
+        self._full = ""
+        self._pos = 0
+        self._scroll_enabled = False
+        self._timer = QTimer(self)
+        self._timer.setInterval(120)
+        self._timer.timeout.connect(self._advance)
+
+    def set_live_text(self, text: str, *, animate: bool = True) -> None:
+        self._full = (text or "").strip()
+        self._pos = 0
+        self._scroll_enabled = animate
+        self._sync_display()
+
+    def stop_animation(self) -> None:
+        self._scroll_enabled = False
+        self._timer.stop()
+        self._sync_display(static=True)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._sync_display()
+
+    def _needs_scroll(self) -> bool:
+        if not self._full:
+            return False
+        return self.fontMetrics().horizontalAdvance(self._full) > max(self.width() - 4, 40)
+
+    def _sync_display(self, static: bool = False) -> None:
+        if not self._full:
+            self.setText("")
+            self._timer.stop()
+            return
+        if static or not self._scroll_enabled or not self._needs_scroll():
+            self._timer.stop()
+            self.setText(self._full)
+            return
+        if not self._timer.isActive():
+            self._timer.start()
+        self._paint_scroll_frame()
+
+    def _advance(self) -> None:
+        if not self._full or not self._scroll_enabled:
+            self._timer.stop()
+            return
+        self._pos = (self._pos + 1) % (len(self._full) + len(self._GAP))
+        self._paint_scroll_frame()
+
+    def _paint_scroll_frame(self) -> None:
+        rotated = self._full[self._pos:] + self._GAP + self._full[:self._pos]
+        self.setText(rotated)
+
+
 class ToolCallMessage(QFrame):
     """Displays a single tool call with its name, arguments, and result."""
 
@@ -448,15 +522,6 @@ class ToolCallMessage(QFrame):
         layout.setContentsMargins(12 if compact else 16, 6 if compact else 10, 12 if compact else 16, 6 if compact else 10)
         layout.setSpacing(4)
 
-        TOOL_ICONS = {
-            "shell_run": "⚡", "file_read": "📖", "file_write": "✏️",
-            "file_list": "📂", "file_delete": "🗑️", "software_launch": "🚀",
-            "open_url": "🌐", "office_word_create": "📄", "office_excel_create": "📊",
-            "office_ppt_create": "📑", "code_create": "💻", "keyboard_type": "⌨️",
-            "hotkey_press": "🎹", "window_focus": "🪟", "list_apps": "📋",
-            "ui_locate": "🎯", "ui_click": "👆",
-            "mouse_click": "🖱️", "screen_capture": "📸", "skill_install": "📦",
-        }
         icon = TOOL_ICONS.get(name, "🔧")
         args_text = self._format_args(name, args)
 
@@ -526,6 +591,15 @@ class ToolCallMessage(QFrame):
         self._toggle_btn.setText("▼" if visible else "▶")
 
     @staticmethod
+    def tool_icon(name: str) -> str:
+        return TOOL_ICONS.get(name, "🔧")
+
+    @staticmethod
+    def live_summary(name: str, args: dict) -> str:
+        args_text = ToolCallMessage._format_args(name, args)
+        return f"{name} · {args_text}" if args_text else name
+
+    @staticmethod
     def _format_args(name: str, args: dict) -> str:
         if name == "shell_run":
             return f"$ {args.get('command', '')}"
@@ -559,6 +633,10 @@ class ToolCallMessage(QFrame):
             if args.get("window_title"):
                 parts.append(f"窗口: {args.get('window_title')}")
             return "  ".join(parts)
+        if name == "library_search":
+            return f"检索: {args.get('query', '')}"
+        if name == "library_list":
+            return "列出资料库文件"
         return ""
 
 
@@ -571,26 +649,54 @@ class ToolCallsGroup(QFrame):
         self._count = 0
         self._collapsed = True
         self._running = True
+        self._latest_name = ""
+        self._latest_args: dict = {}
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        self._header_btn = QPushButton()
-        self._header_btn.setObjectName("ToolCallsGroupHeader")
-        self._header_btn.setCursor(Qt.PointingHandCursor)
-        self._header_btn.clicked.connect(self._toggle_collapsed)
-        header_layout = QHBoxLayout(self._header_btn)
-        header_layout.setContentsMargins(12, 8, 12, 8)
+        self._header = QFrame()
+        self._header.setObjectName("ToolCallsGroupHeader")
+        self._header.setCursor(Qt.PointingHandCursor)
+        self._header.setFixedHeight(36)
+        header_layout = QHBoxLayout(self._header)
+        header_layout.setContentsMargins(14, 0, 12, 0)
         header_layout.setSpacing(8)
         self._summary_label = QLabel("🔧 执行中…")
         self._summary_label.setObjectName("ToolCallsGroupSummary")
+        self._summary_label.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         header_layout.addWidget(self._summary_label, 1)
         self._chevron = QLabel("▶")
         self._chevron.setObjectName("ToolCallsGroupChevron")
         self._chevron.setFixedWidth(16)
+        self._chevron.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         header_layout.addWidget(self._chevron)
-        layout.addWidget(self._header_btn)
+        layout.addWidget(self._header)
+
+        def _header_click(event):
+            if event.button() == Qt.LeftButton:
+                self._toggle_collapsed()
+            QFrame.mouseReleaseEvent(self._header, event)
+
+        self._header.mouseReleaseEvent = _header_click
+
+        self._live_strip = QFrame()
+        self._live_strip.setObjectName("ToolCallsLiveStrip")
+        live_layout = QHBoxLayout(self._live_strip)
+        live_layout.setContentsMargins(12, 0, 12, 8)
+        live_layout.setSpacing(6)
+        self._live_icon = QLabel("🔧")
+        self._live_icon.setObjectName("ToolCallsLiveIcon")
+        self._live_icon.setFixedWidth(20)
+        live_layout.addWidget(self._live_icon)
+        self._live_text = _MarqueeLabel()
+        live_layout.addWidget(self._live_text, 1)
+        self._live_status = QLabel("●")
+        self._live_status.setObjectName("ToolCallsLivePulse")
+        self._live_status.setFixedWidth(14)
+        live_layout.addWidget(self._live_status)
+        layout.addWidget(self._live_strip)
 
         self._body = QFrame()
         self._body.setObjectName("ToolCallsGroupBody")
@@ -603,26 +709,55 @@ class ToolCallsGroup(QFrame):
         body_layout.addLayout(self._tools_layout)
         layout.addWidget(self._body)
 
+        self._live_text.set_live_text("等待工具调用…", animate=False)
+        self._apply_collapsed_state()
+
     @property
     def count(self) -> int:
         return self._count
 
     def add_tool(self, name: str, args: dict, result: str = "") -> None:
         self._count += 1
+        self._latest_name = name
+        self._latest_args = args or {}
         self._tools_layout.addWidget(ToolCallMessage(name, args, result, compact=True))
+        self._update_live_strip()
         self._refresh_summary()
 
     def finalize(self) -> None:
         self._running = False
+        self._live_status.setText("✓")
+        self._live_status.setProperty("done", "true")
+        self._live_status.style().unpolish(self._live_status)
+        self._live_status.style().polish(self._live_status)
+        self._live_text.stop_animation()
         self._refresh_summary()
 
     def set_collapsed(self, collapsed: bool) -> None:
         self._collapsed = collapsed
-        self._body.setVisible(not collapsed)
-        self._chevron.setText("▶" if collapsed else "▼")
+        self._apply_collapsed_state()
 
     def _toggle_collapsed(self) -> None:
         self.set_collapsed(not self._collapsed)
+
+    def _apply_collapsed_state(self) -> None:
+        self._body.setVisible(not self._collapsed)
+        self._live_strip.setVisible(self._collapsed)
+        self._chevron.setText("▶" if self._collapsed else "▼")
+
+    def _update_live_strip(self) -> None:
+        if not self._latest_name:
+            self._live_icon.setText("🔧")
+            self._live_text.set_live_text("等待工具调用…", animate=False)
+            return
+        self._live_icon.setText(ToolCallMessage.tool_icon(self._latest_name))
+        summary = ToolCallMessage.live_summary(self._latest_name, self._latest_args)
+        self._live_text.set_live_text(summary, animate=self._running)
+        if self._running:
+            self._live_status.setText("●")
+            self._live_status.setProperty("done", "false")
+            self._live_status.style().unpolish(self._live_status)
+            self._live_status.style().polish(self._live_status)
 
     def _refresh_summary(self) -> None:
         if self._running:
@@ -667,8 +802,8 @@ class WelcomeWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(48, 0, 48, 48)
-        layout.setSpacing(12)
+        layout.setContentsMargins(64, 0, 64, 54)
+        layout.setSpacing(14)
         layout.addStretch(2)
 
         title = QLabel(APP_NAME)
@@ -676,7 +811,7 @@ class WelcomeWidget(QWidget):
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
 
-        subtitle = QLabel("你的职场超能力")
+        subtitle = QLabel("一个会规划、会执行、会交付文件的本地 Agent 工作台")
         subtitle.setObjectName("WelcomeSubtitle")
         subtitle.setAlignment(Qt.AlignCenter)
         layout.addWidget(subtitle)
@@ -699,7 +834,7 @@ class WelcomeWidget(QWidget):
 
         sub_row = QHBoxLayout()
         sub_row.setAlignment(Qt.AlignCenter)
-        sub_row.setSpacing(16)
+        sub_row.setSpacing(10)
         for sub_name, sub_prompt in self.SUB_CATEGORIES:
             lbl = QPushButton(sub_name)
             lbl.setObjectName("WelcomeSubLink")

@@ -5,11 +5,14 @@ import os
 import shutil
 import subprocess
 import webbrowser
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
+from collections.abc import Iterator
 from typing import Any
 
-from artifacts.artifact_manager import ensure_export_dir
+from artifacts.artifact_manager import ensure_export_dir, register_artifact
 from agent_runtime.gui_hooks import focus_window_by_title, prepare_for_gui_automation
 from agent_runtime.gui_session import (
     ensure_target_foreground,
@@ -19,12 +22,25 @@ from agent_runtime.gui_session import (
 from agent_runtime.dialog_guard import dismiss_blocking_dialogs, format_dismiss_note
 
 _TRUNCATE_LIMIT = 8000
+_TOOL_TASK_ID: ContextVar[int | None] = ContextVar("tool_task_id", default=None)
+_TOOL_PROJECT_ID: ContextVar[int | None] = ContextVar("tool_project_id", default=None)
 
 _DIALOG_CHECK_TOOLS = frozenset({
     "shell_run", "software_launch", "file_delete", "file_write",
     "ui_click", "ui_locate", "keyboard_type", "hotkey_press",
     "mouse_click", "window_focus", "open_url",
 })
+
+
+@contextmanager
+def tool_context(task_id: int | None = None, project_id: int | None = None) -> Iterator[None]:
+    task_token = _TOOL_TASK_ID.set(task_id)
+    project_token = _TOOL_PROJECT_ID.set(project_id)
+    try:
+        yield
+    finally:
+        _TOOL_PROJECT_ID.reset(project_token)
+        _TOOL_TASK_ID.reset(task_token)
 
 
 def execute_tool(name: str, args: dict[str, Any]) -> str:
@@ -566,12 +582,13 @@ def _skill_install(args: dict) -> str:
 
 def _register_artifact(file_path: str, name: str, artifact_type: str) -> None:
     try:
-        from db.database import insert
-        insert("artifacts", {
-            "artifact_name": name,
-            "artifact_type": artifact_type,
-            "file_path": file_path,
-        })
+        register_artifact(
+            file_path,
+            artifact_type,
+            task_id=_TOOL_TASK_ID.get(),
+            project_id=_TOOL_PROJECT_ID.get(),
+            description=f"由工具生成：{name}",
+        )
     except Exception:
         pass
 
@@ -633,6 +650,53 @@ def _ui_click(args: dict) -> str:
         return f"已定位 ({hit.x}, {hit.y}) 但缺少 pyautogui，无法点击"
 
 
+def _library_list(args: dict) -> str:
+    from core.agent_context import current_project
+    from core.file_manager import list_library_files
+
+    project = current_project()
+    project_id = project["id"] if project else None
+    rows = list_library_files(project_id)
+    if not rows:
+        return "资料库为空。请提示用户在「更多 → 资料库」中导入 PDF/Word 等文档。"
+    lines = ["# 资料库文件（data/uploads，非 exports）", ""]
+    for row in rows:
+        name = row.get("file_name", "")
+        ftype = row.get("file_type", "")
+        path = row.get("file_path", "")
+        summary = row.get("summary", "")
+        lines.append(f"- {name} ({ftype})")
+        lines.append(f"  路径: {path}")
+        if summary:
+            lines.append(f"  备注: {summary}")
+    return "\n".join(lines)
+
+
+def _library_search(args: dict) -> str:
+    from core.agent_context import current_project
+    from rag.retriever import search_chunks
+
+    query = (args.get("query") or "").strip()
+    if not query:
+        return "错误：请提供 query 检索词。"
+    limit = int(args.get("limit") or 6)
+    project = current_project()
+    project_id = project["id"] if project else None
+    chunks = search_chunks(query, project_id=project_id, include_standards=True, limit=limit)
+    if not chunks:
+        return "资料库与标准库中未检索到相关内容。请确认文件已在资料库导入并完成索引。"
+    lines = [f"# 资料库检索：{query}", ""]
+    for idx, chunk in enumerate(chunks, 1):
+        source = chunk.get("file_name") or chunk.get("standard_code") or "未知来源"
+        page = chunk.get("page_number")
+        page_hint = f" 页{page}" if page else ""
+        content = (chunk.get("content") or "")[:800]
+        lines.append(f"## [{idx}] {source}{page_hint}")
+        lines.append(content)
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
 def _escape_sendkeys(text: str) -> str:
     special = {"+": "{+}", "^": "{^}", "%": "{%}", "~": "{~}", "(": "{(}", ")": "{)}", "{": "{{}", "}": "{}}"}
     return "".join(special.get(c, c) for c in text)
@@ -661,6 +725,8 @@ _HANDLERS: dict[str, Any] = {
     "screen_capture": _screen_capture,
     "skill_install": _skill_install,
     "image_analyze": _image_analyze,
+    "library_list": _library_list,
+    "library_search": _library_search,
 }
 
 

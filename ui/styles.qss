@@ -1,5 +1,5 @@
 /* ================================================================
-   DNA Work Agent — Global Theme
+   🐷🐷Buddy — Global Theme
    Tokens @NAME replaced at runtime by ui/theme.py
    Agent refresh overrides: ui/styles_agent_refresh.qss
    ================================================================ */
@@ -1128,21 +1128,25 @@ QDialog {
     border: 1px solid @BORDER;
     border-left: 3px solid @WARNING;
     border-radius: 8px;
-    margin: 4px 120px 4px 16px;
+    margin: 6px 120px 6px 16px;
+    padding-top: 2px;
 }
 #ToolCallsGroupHeader {
     background: transparent;
     border: none;
-    text-align: left;
+    min-height: 36px;
 }
 #ToolCallsGroupHeader:hover {
     background-color: @HOVER;
+    border-radius: 6px 6px 0 0;
 }
 #ToolCallsGroupSummary {
     color: @TEXT;
     font-size: 13px;
     font-weight: 600;
     background: transparent;
+    padding: 0;
+    min-height: 20px;
 }
 #ToolCallsGroupChevron {
     color: @WEAK;
@@ -1156,6 +1160,29 @@ QDialog {
 #ToolCallsGroup #ToolCallMessage {
     margin: 2px 8px 2px 8px;
     border-left-width: 2px;
+}
+#ToolCallsLiveStrip {
+    background: transparent;
+    border: none;
+}
+#ToolCallsLiveIcon {
+    font-size: 13px;
+    background: transparent;
+}
+#ToolCallsLiveText {
+    color: @WARNING;
+    font-size: 12px;
+    font-weight: 600;
+    background: transparent;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+}
+#ToolCallsLivePulse {
+    color: @WARNING;
+    font-size: 10px;
+    background: transparent;
+}
+#ToolCallsLivePulse[done="true"] {
+    color: @SUCCESS;
 }
 
 /* Form Labels */
@@ -1357,6 +1384,37 @@ QFormLayout QLabel {
     border-radius: 4px;
 }
 #ReferencePopup::item:selected { background-color: @HOVER; }
+#ReferencePopupList {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+#ReferencePopupList::item {
+    padding: 6px 10px;
+    border-radius: 4px;
+}
+#ReferencePopupList::item:selected { background-color: @HOVER; }
+#ReferenceStrip {
+    background: transparent;
+    border: none;
+}
+#ReferenceCard {
+    background-color: @INPUT;
+    border: 1px solid @BORDER;
+    border-radius: 6px;
+}
+#ReferenceCardName {
+    color: @TEXT;
+    font-size: 12px;
+    background: transparent;
+}
+#ReferenceRemoveBtn {
+    background: transparent;
+    color: @WEAK;
+    border: none;
+    font-size: 12px;
+}
+#ReferenceRemoveBtn:hover { color: @DANGER; }
 
 /* Regenerate Button */
 #RegenerateButton {

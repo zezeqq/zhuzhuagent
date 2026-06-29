@@ -8,7 +8,8 @@ from PySide6.QtWidgets import (
     QMessageBox, QPushButton, QVBoxLayout,
 )
 
-from core.file_manager import import_file, list_project_files
+from core.file_manager import import_file, list_library_files
+from core.agent_context import current_project
 from db.database import execute
 from rag.indexer import index_file, reindex_all_files
 
@@ -26,7 +27,7 @@ class LibraryDialog(QDialog):
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(12)
 
-        hint = QLabel("导入 PDF、Word、Markdown 等文档后自动分块并建立向量索引，Agent 可在「本地检索」模式下引用。")
+        hint = QLabel("导入 PDF、Word、Markdown 等文档后自动分块并建立向量索引。Agent 对话时会检索当前项目与全局资料库（不限于「本地检索」模式）。")
         hint.setObjectName("MutedLabel")
         hint.setWordWrap(True)
         layout.addWidget(hint)
@@ -69,7 +70,9 @@ class LibraryDialog(QDialog):
 
     def _refresh_list(self) -> None:
         self._list.clear()
-        for row in list_project_files():
+        for row in list_library_files(
+            current_project()["id"] if current_project() else None
+        ):
             fid = row["id"]
             name = row.get("file_name", "")
             ftype = row.get("file_type", "")
@@ -90,9 +93,11 @@ class LibraryDialog(QDialog):
         if not paths:
             return
         errors: list[str] = []
+        project = current_project()
+        project_id = project["id"] if project else None
         for path in paths:
             try:
-                fid = import_file(path)
+                fid = import_file(path, project_id=project_id)
                 index_file(fid)
             except Exception as exc:
                 errors.append(f"{Path(path).name}: {exc}")

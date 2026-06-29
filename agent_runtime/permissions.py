@@ -8,7 +8,7 @@ MEDIUM_RISK_TOOLS = {"shell_run", "file_write", "software_launch", "code_create"
 
 LOW_RISK_TOOLS = {"file_read", "file_list", "open_url", "office_word_create",
                   "office_excel_create", "office_ppt_create", "screen_capture", "list_apps",
-                  "ui_locate"}
+                  "ui_locate", "library_list", "library_search"}
 
 
 def get_risk_level(tool_name: str) -> str:
@@ -49,5 +49,7 @@ def describe_risk(tool_name: str) -> str:
         "ui_click": "点击界面元素",
         "window_focus": "聚焦窗口",
         "skill_install": "安装技能包",
+        "library_list": "列出资料库文件",
+        "library_search": "检索资料库内容",
     }
     return descriptions.get(tool_name, tool_name)

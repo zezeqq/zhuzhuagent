@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QTimer, QMimeData
-from PySide6.QtGui import QDragEnterEvent, QDropEvent, QPixmap, QImage
+from PySide6.QtCore import Qt, Signal, QTimer, QMimeData, QUrl
+from PySide6.QtGui import QDragEnterEvent, QDropEvent, QPixmap, QImage, QTextCursor
+from PySide6.QtMultimedia import QAudioInput, QMediaCaptureSession, QMediaRecorder
 from PySide6.QtWidgets import (
     QComboBox, QFileDialog, QFrame, QHBoxLayout, QLabel,
-    QPushButton, QScrollArea, QTextEdit, QVBoxLayout, QWidget,
+    QMenu, QPushButton, QScrollArea, QSizePolicy, QTextEdit, QVBoxLayout, QWidget,
 )
 
 from core.agent_context import current_project, default_model
@@ -22,7 +24,10 @@ from ui.widgets.message_widget import (
     WelcomeWidget, _qobject_alive,
 )
 from ui.widgets.mode_selector import ModeSelector
-from ui.workers import AgentWorker, ExpertTeamWorker
+from ui.widgets.chat_input import ChatInputEdit, format_mention_for_display
+from ui.widgets.file_reference_popup import FileReferencePopup
+from ui.widgets.reference_strip import ReferenceStrip
+from ui.workers import AgentWorker, ExpertTeamWorker, VoiceTranscribeWorker
 
 
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".ico"}
@@ -56,57 +61,6 @@ def _is_placeholder_message(widget: AgentMessage | None) -> bool:
     if widget is None or not _qobject_alive(widget):
         return False
     return getattr(widget, "_raw_text", "") in _PLACEHOLDER_TEXTS
-
-
-class _DropTextEdit(QTextEdit):
-    """QTextEdit that accepts drag-and-drop for image/audio files."""
-
-    files_dropped = Signal(list)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setAcceptDrops(True)
-
-    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
-        if event.mimeData().hasUrls():
-            for url in event.mimeData().urls():
-                if url.isLocalFile():
-                    suffix = Path(url.toLocalFile()).suffix.lower()
-                    if suffix in ALLOWED_EXTS:
-                        event.acceptProposedAction()
-                        return
-        if event.mimeData().hasImage():
-            event.acceptProposedAction()
-            return
-        super().dragEnterEvent(event)
-
-    def dragMoveEvent(self, event) -> None:
-        if event.mimeData().hasUrls() or event.mimeData().hasImage():
-            event.acceptProposedAction()
-        else:
-            super().dragMoveEvent(event)
-
-    def dropEvent(self, event: QDropEvent) -> None:
-        files: list[str] = []
-        if event.mimeData().hasUrls():
-            for url in event.mimeData().urls():
-                if url.isLocalFile():
-                    fpath = url.toLocalFile()
-                    suffix = Path(fpath).suffix.lower()
-                    if suffix in ALLOWED_EXTS:
-                        files.append(fpath)
-        if event.mimeData().hasImage() and not files:
-            img = QImage(event.mimeData().imageData())
-            if not img.isNull():
-                import tempfile, os
-                tmp = os.path.join(tempfile.gettempdir(), f"dna_paste_{id(img)}.png")
-                img.save(tmp)
-                files.append(tmp)
-        if files:
-            event.acceptProposedAction()
-            self.files_dropped.emit(files)
-        else:
-            super().dropEvent(event)
 
 
 class _AttachmentStrip(QWidget):
@@ -235,6 +189,14 @@ class ConversationPanel(QFrame):
         self._run_tool_counts: dict[int, int] = {}
         self._pending_permissions: dict[int, tuple[dict, AgentWorker]] = {}
         self._pending_plan_text: str = ""
+        self._voice_recorder: QMediaRecorder | None = None
+        self._voice_session: QMediaCaptureSession | None = None
+        self._voice_audio_input: QAudioInput | None = None
+        self._voice_audio_path: str = ""
+        self._voice_worker: VoiceTranscribeWorker | None = None
+        self._is_recording_voice = False
+        self._ref_popup: FileReferencePopup | None = None
+        self._ref_popup_visible = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -275,14 +237,6 @@ class ConversationPanel(QFrame):
         self._model_combo.setMinimumWidth(180)
         layout.addWidget(self._model_combo)
 
-        self._workspace_btn = QPushButton("📁")
-        self._workspace_btn.setObjectName("ToolbarIconBtn")
-        self._workspace_btn.setToolTip(t("chat_workspace_tip"))
-        self._workspace_btn.setCursor(Qt.PointingHandCursor)
-        self._workspace_btn.setFixedSize(32, 32)
-        self._workspace_btn.clicked.connect(self._choose_workspace)
-        layout.addWidget(self._workspace_btn)
-
         self._load_models()
         return bar
 
@@ -315,25 +269,62 @@ class ConversationPanel(QFrame):
         self._attach_strip.attachment_removed.connect(self._on_attachment_removed)
         layout.addWidget(self._attach_strip)
 
-        self._input = _DropTextEdit()
+        self._ref_strip = ReferenceStrip()
+        layout.addWidget(self._ref_strip)
+
+        composer = QFrame()
+        composer.setObjectName("InputComposer")
+        composer_layout = QVBoxLayout(composer)
+        composer_layout.setContentsMargins(16, 14, 16, 12)
+        composer_layout.setSpacing(10)
+
+        self._input = ChatInputEdit()
         self._input.setObjectName("ChatInput")
-        self._input.setPlaceholderText(t("chat_input_placeholder"))
-        self._input.setFixedHeight(88)
+        self._input.setPlaceholderText("今天帮你做些什么？输入 @ 引用资料库或生成文件，/ 调用技能")
+        self._input.setFixedHeight(92)
         self._input.installEventFilter(self)
         self._input.files_dropped.connect(self._on_files_dropped)
-        layout.addWidget(self._input)
+        self._input.reference_trigger.connect(self._on_reference_trigger)
+        self._input.reference_cancel.connect(self._hide_reference_popup)
+        composer_layout.addWidget(self._input)
 
-        bottom_bar = QHBoxLayout()
-        bottom_bar.setSpacing(6)
+        self._ref_popup = FileReferencePopup(self)
+        self._ref_popup.item_chosen.connect(self._on_reference_chosen)
 
-        mode_lbl = QLabel("Mode")
-        mode_lbl.setObjectName("MutedLabel")
-        mode_lbl.setStyleSheet("font-size:12px; padding-right:2px;")
-        bottom_bar.addWidget(mode_lbl)
+        controls_host = QFrame()
+        controls_host.setObjectName("InputControlsStrip")
+        controls = QHBoxLayout(controls_host)
+        controls.setContentsMargins(0, 0, 0, 0)
+        controls.setSpacing(6)
 
         self._mode = ModeSelector()
         self._mode.mode_changed.connect(self._on_mode_changed)
-        bottom_bar.addWidget(self._mode)
+        self._mode.setFixedWidth(104)
+        controls.addWidget(self._mode)
+
+        tools_btn = QPushButton("⚙ 工具")
+        tools_btn.setObjectName("InputBarButton")
+        tools_btn.setCursor(Qt.PointingHandCursor)
+        tools_btn.setToolTip("Skill / MCP")
+        tools_btn.setFixedWidth(78)
+        tools_menu = QMenu(tools_btn)
+        self._my_skills_action = tools_menu.addAction(t("chat_my_skills"))
+        self._my_skills_action.triggered.connect(lambda: self._open_skills(my_skills=True))
+        self._skill_store_action = tools_menu.addAction(t("chat_skill_store"))
+        self._skill_store_action.triggered.connect(self._open_skills)
+        tools_menu.addSeparator()
+        self._mcp_action = tools_menu.addAction(t("chat_mcp"))
+        self._mcp_action.triggered.connect(self._open_mcp)
+        tools_btn.setMenu(tools_menu)
+        self._tools_btn = tools_btn
+
+        self._expert_combo = QComboBox()
+        self._expert_combo.setObjectName("InputBarCombo")
+        self._expert_combo.setFixedWidth(132)
+        for key, display, _ in EXPERTS:
+            self._expert_combo.addItem(f"👤 {display}", key)
+        self._expert_combo.currentIndexChanged.connect(self._on_expert_changed)
+        controls.addWidget(self._expert_combo)
 
         self._auto_btn = QPushButton(t("chat_auto"))
         self._auto_btn.setObjectName("InputBarButton")
@@ -341,46 +332,16 @@ class ConversationPanel(QFrame):
         self._auto_btn.setCheckable(True)
         self._auto_btn.setToolTip(t("chat_auto_tip"))
         self._auto_btn.toggled.connect(self._on_auto_model_toggled)
-        bottom_bar.addWidget(self._auto_btn)
-
-        skill_btn = QPushButton(t("chat_skill_store"))
-        skill_btn.setObjectName("InputBarButton")
-        skill_btn.setCursor(Qt.PointingHandCursor)
-        skill_btn.setToolTip(t("chat_skill_store_tip"))
-        skill_btn.clicked.connect(self._open_skills)
-        self._skill_store_btn = skill_btn
-
-        my_skill_btn = QPushButton(t("chat_my_skills"))
-        my_skill_btn.setObjectName("InputBarButton")
-        my_skill_btn.setCursor(Qt.PointingHandCursor)
-        my_skill_btn.setToolTip(t("chat_my_skills_tip"))
-        my_skill_btn.clicked.connect(lambda: self._open_skills(my_skills=True))
-        self._my_skills_btn = my_skill_btn
-        bottom_bar.addWidget(my_skill_btn)
-        bottom_bar.addWidget(skill_btn)
-
-        mcp_btn = QPushButton(t("chat_mcp"))
-        mcp_btn.setObjectName("InputBarButton")
-        mcp_btn.setCursor(Qt.PointingHandCursor)
-        mcp_btn.setToolTip(t("chat_mcp_tip"))
-        mcp_btn.clicked.connect(self._open_mcp)
-        self._mcp_btn = mcp_btn
-        bottom_bar.addWidget(mcp_btn)
-
-        self._expert_combo = QComboBox()
-        self._expert_combo.setObjectName("InputBarCombo")
-        self._expert_combo.setMinimumWidth(100)
-        for key, display, _ in EXPERTS:
-            self._expert_combo.addItem(f"👤 {display}", key)
-        self._expert_combo.currentIndexChanged.connect(self._on_expert_changed)
-        bottom_bar.addWidget(self._expert_combo)
+        self._auto_btn.setVisible(False)
 
         self._skill_combo = QComboBox()
         self._skill_combo.setObjectName("InputBarCombo")
-        self._skill_combo.setMinimumWidth(110)
+        self._skill_combo.setFixedWidth(128)
         self._skill_combo.setToolTip("选择本对话优先使用的 Skill（空=注入全部已启用 Skill）")
         self._load_skill_combo()
-        bottom_bar.addWidget(self._skill_combo)
+        self._skill_combo.setVisible(False)
+
+        controls.addWidget(tools_btn)
 
         self._perm_btn = QPushButton(t("chat_perm_default"))
         self._perm_btn.setObjectName("InputBarButton")
@@ -388,9 +349,15 @@ class ConversationPanel(QFrame):
         self._perm_btn.setCheckable(True)
         self._perm_btn.setToolTip(t("chat_perm_tip"))
         self._perm_btn.clicked.connect(self._toggle_permission)
-        bottom_bar.addWidget(self._perm_btn)
+        controls.addWidget(self._perm_btn)
+        controls.addStretch(1)
 
-        bottom_bar.addStretch()
+        action_group = QFrame()
+        action_group.setObjectName("InputActionGroup")
+        action_group.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        action_layout = QHBoxLayout(action_group)
+        action_layout.setContentsMargins(4, 0, 0, 0)
+        action_layout.setSpacing(7)
 
         self._stop_btn = QPushButton("⏹")
         self._stop_btn.setObjectName("InputIconButton")
@@ -399,7 +366,7 @@ class ConversationPanel(QFrame):
         self._stop_btn.setFixedSize(34, 34)
         self._stop_btn.setVisible(False)
         self._stop_btn.clicked.connect(self._stop_generation)
-        bottom_bar.addWidget(self._stop_btn)
+        action_layout.addWidget(self._stop_btn)
 
         attach_btn = QPushButton("＋")
         attach_btn.setObjectName("InputIconButton")
@@ -408,20 +375,68 @@ class ConversationPanel(QFrame):
         attach_btn.setFixedSize(34, 34)
         attach_btn.clicked.connect(self._attach_file)
         self._attach_btn = attach_btn
-        bottom_bar.addWidget(attach_btn)
+        action_layout.addWidget(attach_btn)
 
-        self._send_btn = QPushButton("▲")
+        ref_btn = QPushButton("@")
+        ref_btn.setObjectName("InputIconButton")
+        ref_btn.setToolTip("引用资料库或生成文件")
+        ref_btn.setCursor(Qt.PointingHandCursor)
+        ref_btn.setFixedSize(34, 34)
+        ref_btn.clicked.connect(self._input.trigger_reference_picker)
+        action_layout.addWidget(ref_btn)
+
+        self._voice_btn = QPushButton("🎙")
+        self._voice_btn.setObjectName("VoiceButton")
+        self._voice_btn.setToolTip("语音输入")
+        self._voice_btn.setCursor(Qt.PointingHandCursor)
+        self._voice_btn.setFixedSize(34, 34)
+        self._voice_btn.clicked.connect(self._toggle_voice_input)
+        action_layout.addWidget(self._voice_btn)
+
+        self._send_btn = QPushButton("↑")
         self._send_btn.setObjectName("SendButton")
         self._send_btn.setToolTip("发送 (Enter)")
         self._send_btn.setCursor(Qt.PointingHandCursor)
-        self._send_btn.setFixedSize(38, 38)
+        self._send_btn.setFixedSize(48, 48)
         self._send_btn.clicked.connect(self.send)
-        bottom_bar.addWidget(self._send_btn)
+        action_layout.addWidget(self._send_btn)
+        controls.addWidget(action_group, 0, Qt.AlignRight)
 
-        layout.addLayout(bottom_bar)
+        composer_layout.addWidget(controls_host)
+        layout.addWidget(composer)
+
+        workspace_row = QFrame()
+        workspace_row.setObjectName("WorkspaceRow")
+        workspace_layout = QHBoxLayout(workspace_row)
+        workspace_layout.setContentsMargins(14, 0, 14, 0)
+        workspace_layout.setSpacing(6)
+        self._workspace_btn = QPushButton("▢  选择工作空间  ›")
+        self._workspace_btn.setObjectName("WorkspacePickerButton")
+        self._workspace_btn.setToolTip(t("chat_workspace_tip"))
+        self._workspace_btn.setCursor(Qt.PointingHandCursor)
+        self._workspace_btn.clicked.connect(self._choose_workspace)
+        workspace_layout.addWidget(self._workspace_btn, 0, Qt.AlignLeft)
+        workspace_layout.addStretch(1)
+        layout.addWidget(workspace_row)
         return area
 
     def eventFilter(self, obj, event):
+        if obj is self._input and self._ref_popup_visible and self._ref_popup:
+            if event.type() == event.Type.KeyPress:
+                key = event.key()
+                if key in (Qt.Key_Up, Qt.Key_Down, Qt.Key_Return, Qt.Key_Enter, Qt.Key_Escape):
+                    if key == Qt.Key_Up:
+                        self._ref_popup.select_prev()
+                        return True
+                    if key == Qt.Key_Down:
+                        self._ref_popup.select_next()
+                        return True
+                    if key in (Qt.Key_Return, Qt.Key_Enter):
+                        self._ref_popup.accept_current()
+                        return True
+                    if key == Qt.Key_Escape:
+                        self._hide_reference_popup()
+                        return True
         if obj is self._input and event.type() == event.Type.KeyPress:
             from core.settings_runtime import send_key_is_ctrl_enter
             if event.key() == Qt.Key_Return and not event.modifiers() & Qt.ShiftModifier:
@@ -449,7 +464,7 @@ class ConversationPanel(QFrame):
             self._model_label.setText(t("chat_model"))
         if hasattr(self, "_workspace_btn"):
             self._workspace_btn.setToolTip(t("chat_workspace_tip"))
-        self._input.setPlaceholderText(t("chat_input_placeholder"))
+        self._input.setPlaceholderText("今天帮你做些什么？输入 @ 引用资料库或生成文件，/ 调用技能")
         self._auto_btn.setText(t("chat_auto"))
         self._auto_btn.setToolTip(t("chat_auto_tip"))
         if hasattr(self, "_skill_store_btn"):
@@ -461,6 +476,12 @@ class ConversationPanel(QFrame):
         if hasattr(self, "_mcp_btn"):
             self._mcp_btn.setText(t("chat_mcp"))
             self._mcp_btn.setToolTip(t("chat_mcp_tip"))
+        if hasattr(self, "_my_skills_action"):
+            self._my_skills_action.setText(t("chat_my_skills"))
+        if hasattr(self, "_skill_store_action"):
+            self._skill_store_action.setText(t("chat_skill_store"))
+        if hasattr(self, "_mcp_action"):
+            self._mcp_action.setText(t("chat_mcp"))
         if self._perm_btn.isChecked():
             self._perm_btn.setText(t("chat_perm_full"))
         else:
@@ -469,6 +490,8 @@ class ConversationPanel(QFrame):
         self._stop_btn.setToolTip(t("chat_stop_tip"))
         if hasattr(self, "_attach_btn"):
             self._attach_btn.setToolTip(t("chat_attach_tip"))
+        if hasattr(self, "_voice_btn"):
+            self._voice_btn.setToolTip("语音输入")
         if hasattr(self, "_mode") and hasattr(self._mode, "retranslate_ui"):
             self._mode.retranslate_ui()
         self.apply_send_key_setting()
@@ -920,16 +943,22 @@ class ConversationPanel(QFrame):
         project = current_project()
 
         attachments = self._attach_strip.file_paths()
-        display_text = text
+        referenced = self._ref_strip.file_paths()
+        display_text = format_mention_for_display(text)
+        if referenced:
+            ref_names = [Path(f).name for f in referenced]
+            display_text += "\n📎 @" + ", @".join(ref_names)
         if attachments:
             file_names = [Path(f).name for f in attachments]
-            display_text += "\n📎 " + ", ".join(file_names)
+            display_text += "\n🖼 " + ", ".join(file_names)
 
         add_message(self._conversation_id, "user", display_text, project_id=project["id"] if project else None)
         self._last_user_text = text
         self._add_widget(UserMessage(display_text))
         self._input.clear()
         self._attach_strip.clear_all()
+        self._ref_strip.clear_all()
+        self._hide_reference_popup()
         self._scroll_to_bottom()
 
         mode = self._mode.current_mode()
@@ -939,7 +968,9 @@ class ConversationPanel(QFrame):
 
         self._run_agent(
             text, model, project, mode, full_access,
-            attachments=attachments, local_search_only=local_only,
+            attachments=attachments,
+            referenced_files=referenced,
+            local_search_only=local_only,
         )
 
     def _send_continue_text(self, text: str) -> None:
@@ -973,6 +1004,7 @@ class ConversationPanel(QFrame):
     def _run_agent(self, text: str, model: dict | None, project: dict | None,
                    mode: str = "craft", full_access: bool = False,
                    attachments: list[str] | None = None,
+                   referenced_files: list[str] | None = None,
                    local_search_only: bool = False,
                    plan_execute: bool = False,
                    plan_context: str = "") -> None:
@@ -1020,6 +1052,7 @@ class ConversationPanel(QFrame):
             full_access=full_access,
             history=history,
             attachments=attachments or [],
+            referenced_files=referenced_files or [],
             conversation_id=conv_id,
             auto_approve=self._session_auto_approve,
             local_search_only=local_search_only,
@@ -1217,6 +1250,8 @@ class ConversationPanel(QFrame):
         self._send_btn.setEnabled(not busy)
         self._stop_btn.setVisible(busy)
         self._input.setReadOnly(busy)
+        if hasattr(self, "_voice_btn"):
+            self._voice_btn.setEnabled(not busy or self._is_recording_voice)
 
     def _stop_generation(self) -> None:
         if self._worker and self._worker.isRunning():
@@ -1229,6 +1264,81 @@ class ConversationPanel(QFrame):
     def _on_prompt_selected(self, prompt: str) -> None:
         self._input.setPlainText(prompt)
         self.send()
+
+    def _toggle_voice_input(self) -> None:
+        if self._is_recording_voice:
+            self._stop_voice_recording()
+        else:
+            self._start_voice_recording()
+
+    def _start_voice_recording(self) -> None:
+        try:
+            audio_path = str(Path(tempfile.gettempdir()) / "buddy_voice_input.wav")
+            self._voice_audio_path = audio_path
+            self._voice_session = QMediaCaptureSession(self)
+            self._voice_audio_input = QAudioInput(self)
+            self._voice_recorder = QMediaRecorder(self)
+            self._voice_session.setAudioInput(self._voice_audio_input)
+            self._voice_session.setRecorder(self._voice_recorder)
+            self._voice_recorder.setOutputLocation(QUrl.fromLocalFile(audio_path))
+            self._voice_recorder.record()
+        except Exception as exc:
+            self._show_status(f"语音输入启动失败：{exc}")
+            return
+
+        self._is_recording_voice = True
+        self._voice_btn.setText("■")
+        self._voice_btn.setProperty("recording", "true")
+        self._repolish(self._voice_btn)
+        self._show_status("正在录音，再次点击麦克风停止并转写。")
+
+    def _stop_voice_recording(self) -> None:
+        if self._voice_recorder:
+            self._voice_recorder.stop()
+        self._is_recording_voice = False
+        self._voice_btn.setText("🎙")
+        self._voice_btn.setProperty("recording", "false")
+        self._repolish(self._voice_btn)
+        self._show_status("录音已停止，正在识别文字…")
+        QTimer.singleShot(350, self._transcribe_voice_recording)
+
+    def _transcribe_voice_recording(self) -> None:
+        path = self._voice_audio_path
+        if not path or not Path(path).is_file() or Path(path).stat().st_size == 0:
+            self._show_status("没有录到可识别的音频。")
+            return
+        model_data = self._model_combo.currentData()
+        model, local_only = self._resolve_model(model_data, self._auto_btn.isChecked())
+        if local_only:
+            model = default_model()
+        self._voice_worker = VoiceTranscribeWorker(path, model)
+        self._voice_worker.transcribed.connect(self._on_voice_transcribed)
+        self._voice_worker.error.connect(self._on_voice_error)
+        self._voice_worker.finished.connect(lambda: setattr(self, "_voice_worker", None))
+        self._voice_worker.start()
+
+    def _on_voice_transcribed(self, text: str) -> None:
+        existing = self._input.toPlainText().rstrip()
+        self._input.setPlainText(f"{existing}\n{text}".strip() if existing else text)
+        cursor = self._input.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        self._input.setTextCursor(cursor)
+        self._input.setFocus()
+        self._show_status("语音已转成文字。")
+
+    def _on_voice_error(self, error: str) -> None:
+        self._show_status(error or "语音识别失败。")
+
+    @staticmethod
+    def _repolish(widget: QWidget) -> None:
+        widget.style().unpolish(widget)
+        widget.style().polish(widget)
+        widget.update()
+
+    def _show_status(self, message: str, timeout: int = 4000) -> None:
+        win = self.window()
+        if win and hasattr(win, "_status"):
+            win._status.showMessage(message, timeout)
 
     def _choose_workspace(self) -> None:
         path = QFileDialog.getExistingDirectory(self, "选择工作目录")
@@ -1271,3 +1381,30 @@ class ConversationPanel(QFrame):
 
     def _on_attachment_removed(self, path: str) -> None:
         pass
+
+    def _on_reference_trigger(self, query: str, global_pos) -> None:
+        if not self._ref_popup:
+            return
+        self._ref_popup.set_query(query)
+        self._ref_popup.move(global_pos)
+        self._ref_popup.show()
+        self._ref_popup_visible = True
+
+    def _hide_reference_popup(self) -> None:
+        if self._ref_popup and self._ref_popup.isVisible():
+            self._ref_popup.hide()
+        self._ref_popup_visible = False
+
+    def _on_reference_chosen(self, item: dict) -> None:
+        path = item.get("path", "")
+        name = item.get("name") or Path(path).name
+        if not path:
+            return
+        self._input.insert_file_reference(name)
+        self._ref_strip.add_reference(
+            path,
+            icon=item.get("icon", "📎"),
+            category=item.get("subtitle", ""),
+        )
+        self._hide_reference_popup()
+        self._input.setFocus()

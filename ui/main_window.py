@@ -32,8 +32,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(t("window_title"))
-        self.resize(1440, 900)
-        self.setMinimumSize(1100, 700)
+        self.resize(1500, 940)
+        self.setMinimumSize(1180, 740)
         self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
         self._maximize_btn: QPushButton | None = None
 
@@ -66,7 +66,7 @@ class MainWindow(QMainWindow):
         self._splitter.addWidget(self._sidebar)
         self._splitter.addWidget(self._content_stack)
         self._splitter.addWidget(self._results)
-        self._splitter.setSizes([280, 780, 380])
+        self._splitter.setSizes([308, 852, 400])
         self._splitter.setStretchFactor(0, 0)
         self._splitter.setStretchFactor(1, 1)
         self._splitter.setStretchFactor(2, 0)

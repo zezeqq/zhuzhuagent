@@ -119,14 +119,14 @@ def _render_heading(block: str) -> str:
             break
     level = min(level, 6)
     text = _inline_format(html.escape(line.lstrip("# ").strip()))
-    sizes = {1: "21px", 2: "18px", 3: "16px", 4: "15px", 5: "14px", 6: "14px"}
-    weights = {1: "700", 2: "700", 3: "600", 4: "600", 5: "600", 6: "500"}
+    sizes = {1: "22px", 2: "19px", 3: "17px", 4: "15px", 5: "14px", 6: "14px"}
+    weights = {1: "800", 2: "750", 3: "700", 4: "650", 5: "650", 6: "600"}
     size = sizes.get(level, "15px")
     weight = weights.get(level, "600")
     color = c["text"] if level <= 2 else c["body"]
     margin = "16px 0 8px 0" if level <= 2 else "12px 0 6px 0"
     border = f"border-bottom: 1px solid {c['border']}; padding-bottom: 6px;" if level <= 2 else ""
-    return f'<div style="font-size:{size}; font-weight:{weight}; color:{color}; margin:{margin}; letter-spacing:-0.2px; {border}">{text}</div>'
+    return f'<div style="font-size:{size}; font-weight:{weight}; color:{color}; margin:{margin}; letter-spacing:0; {border}">{text}</div>'
 
 
 def _render_code_block(block: str) -> str:
@@ -138,8 +138,8 @@ def _render_code_block(block: str) -> str:
     lang_badge = f'<span style="color:{c["weak"]}; font-size:11px; float:right;">{html.escape(lang)}</span>' if lang else ""
     return (
         f'<div style="background-color:{c["input"]}; border:1px solid {c["border"]}; border-radius:12px; '
-        f'padding:12px 14px; margin:8px 0; font-family:Cascadia Mono,Consolas,monospace; '
-        f'font-size:12px; color:{c["body"]}; line-height:1.55; white-space:pre-wrap; overflow-x:auto;">'
+        f'padding:13px 15px; margin:10px 0; font-family:Cascadia Mono,Consolas,monospace; '
+        f'font-size:12px; color:{c["text"]}; line-height:1.6; white-space:pre-wrap; overflow-x:auto;">'
         f'{lang_badge}<code>{code}</code></div>'
     )
 
@@ -198,7 +198,7 @@ def _render_unordered_list(block: str) -> str:
         elif items:
             items[-1] += " " + stripped
     li_html = "".join(
-        f'<li style="margin:4px 0; color:{c["body"]}; font-size:14px; line-height:1.65;">{_inline_format(html.escape(item))}</li>'
+        f'<li style="margin:5px 0; color:{c["text"]}; font-size:14px; line-height:1.7;">{_inline_format(html.escape(item))}</li>'
         for item in items
     )
     return f'<ul style="margin:6px 0; padding-left:24px;">{li_html}</ul>'
@@ -215,7 +215,7 @@ def _render_ordered_list(block: str) -> str:
         elif items:
             items[-1] += " " + stripped
     li_html = "".join(
-        f'<li style="margin:4px 0; color:{c["body"]}; font-size:14px; line-height:1.65;">{_inline_format(html.escape(item))}</li>'
+        f'<li style="margin:5px 0; color:{c["text"]}; font-size:14px; line-height:1.7;">{_inline_format(html.escape(item))}</li>'
         for item in items
     )
     return f'<ol style="margin:6px 0; padding-left:24px;">{li_html}</ol>'
@@ -237,7 +237,7 @@ def _render_paragraph(block: str) -> str:
     c = _md_colors()
     text = block.replace("\n", "<br/>")
     text = _inline_format(html.escape(text).replace("&lt;br/&gt;", "<br/>"))
-    return f'<p style="margin:6px 0; line-height:1.7; color:{c["body"]}; font-size:14px; letter-spacing:0.1px;">{text}</p>'
+    return f'<p style="margin:7px 0; line-height:1.76; color:{c["text"]}; font-size:14px; letter-spacing:0;">{text}</p>'
 
 
 def _inline_format(text: str) -> str:

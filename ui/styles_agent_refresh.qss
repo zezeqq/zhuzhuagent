@@ -550,3 +550,1128 @@ QMenu::item {
     font-size: 13px;
     line-height: 1.5;
 }
+
+/* ================================================================
+   🐷🐷Buddy Agent Studio pass — Cursor/Devin-inspired workstation
+   ================================================================ */
+
+QWidget {
+    color: @TEXT;
+    selection-background-color: @BLUE_MUTED;
+}
+
+QMainWindow {
+    background-color: @BG;
+}
+
+#AppMenuBar {
+    background-color: @SIDEBAR;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+#AppMenuButton, #MenuToggleButton {
+    color: @MUTED;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: @RADIUS_SM;
+    padding: 5px 12px;
+}
+#AppMenuButton:hover, #MenuToggleButton:hover {
+    color: @TEXT;
+    background-color: @HOVER;
+    border-color: @BORDER;
+}
+
+#TitleBarButton, #TitleBarCloseButton {
+    color: @WEAK;
+    background-color: transparent;
+    border-radius: @RADIUS_SM;
+    margin: 3px 2px;
+}
+#TitleBarButton:hover {
+    color: @TEXT;
+    background-color: @HOVER;
+}
+
+#AppStatusBar {
+    background-color: @SIDEBAR;
+    color: @WEAK;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 11px;
+}
+
+#MainSplitter {
+    background-color: @BG;
+}
+#MainSplitter::handle {
+    background-color: rgba(255, 255, 255, 0.045);
+}
+
+/* Sidebar as a quiet command rail */
+#TaskSidebar {
+    background-color: @SIDEBAR;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+#SidebarHeader {
+    background-color: @SIDEBAR;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+#BrandName {
+    color: @TEXT;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+#BrandVersion {
+    color: @WEAK;
+    font-size: 11px;
+    letter-spacing: 0;
+}
+#SidebarIconButton {
+    color: @WEAK;
+    border: 1px solid transparent;
+    border-radius: @RADIUS_SM;
+}
+#SidebarIconButton:hover {
+    color: @TEXT;
+    background-color: @HOVER;
+    border-color: @BORDER;
+}
+#NewTaskButton {
+    color: #FFFFFF;
+    background-color: @BLUE;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: @RADIUS_LG;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px 0;
+    letter-spacing: 0;
+}
+#NewTaskButton:hover {
+    background-color: @BLUE_HOVER;
+}
+#SidebarSearch {
+    color: @TEXT;
+    background-color: @INPUT;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_LG;
+    padding: 8px 13px;
+    font-size: 13px;
+}
+#SidebarSearch:focus {
+    border-color: @BLUE;
+    background-color: @SURFACE;
+}
+#SidebarNav {
+    background-color: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+}
+#SidebarNavItem {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: @RADIUS_MD;
+    margin: 2px 4px;
+    padding: 8px 11px;
+}
+#SidebarNavItem:hover {
+    background-color: @HOVER;
+    border-color: @BORDER;
+}
+#SidebarNavItem[selected="true"] {
+    background-color: @ACCENT_SOFT;
+    border: 1px solid rgba(122, 162, 255, 0.28);
+}
+#NavItemLabel {
+    color: @TEXT;
+    font-size: 13px;
+    font-weight: 650;
+    letter-spacing: 0;
+}
+#NavSubLink {
+    color: @WEAK;
+    border: 1px solid transparent;
+    border-radius: @RADIUS_PILL;
+    padding: 3px 8px;
+    font-size: 11px;
+}
+#NavSubLink:hover {
+    color: @TEXT;
+    background-color: @SURFACE;
+    border-color: @BORDER;
+}
+#SidebarSectionTitle {
+    color: @WEAK;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+#TaskCard {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: @RADIUS_MD;
+    margin: 2px 5px;
+}
+#TaskCard:hover {
+    background-color: @HOVER;
+    border-color: @BORDER;
+}
+#TaskCard[selected="true"] {
+    background-color: @ACCENT_SOFT;
+    border: 1px solid rgba(122, 162, 255, 0.32);
+}
+#TaskCardTitle {
+    color: @TEXT;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+#TaskCardTime {
+    color: @WEAK;
+    font-size: 11px;
+}
+#SidebarBottom {
+    background-color: @SIDEBAR;
+    border-top: 1px solid rgba(255, 255, 255, 0.055);
+}
+#SidebarAvatar {
+    background-color: @ACCENT_SOFT;
+    color: @TEXT;
+    border: 1px solid rgba(122, 162, 255, 0.28);
+    border-radius: @RADIUS_PILL;
+    font-size: 17px;
+    font-weight: 800;
+    padding: 0;
+}
+#SidebarUserName {
+    color: @MUTED;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Central agent surface */
+#ConversationPanel {
+    background-color: @BG;
+}
+#ConversationToolbar {
+    background-color: @TOOLBAR;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+#ConversationToolbar QLabel {
+    color: @MUTED;
+}
+#ConvTitle {
+    color: @TEXT;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+#ToolbarCombo, #InputBarCombo, QComboBox {
+    background-color: @SURFACE;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_MD;
+    min-height: 30px;
+}
+#ToolbarCombo:hover, #InputBarCombo:hover, QComboBox:hover {
+    border-color: @BORDER_LIGHT;
+}
+#ToolbarIconBtn {
+    border: 1px solid transparent;
+    border-radius: @RADIUS_SM;
+}
+#ToolbarIconBtn:hover {
+    border-color: @BORDER;
+}
+#ModeSelector {
+    background-color: @INPUT;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_PILL;
+    padding: 3px;
+}
+#ModeButton {
+    color: @MUTED;
+    border-radius: @RADIUS_PILL;
+    padding: 6px 15px;
+    font-size: 12px;
+    font-weight: 650;
+}
+#ModeButton:checked {
+    background-color: @SURFACE;
+    color: @TEXT;
+    border: 1px solid rgba(122, 162, 255, 0.28);
+}
+#MessageScroll, #MessageContainer {
+    background-color: transparent;
+}
+
+#WelcomeTitle {
+    color: @TEXT;
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+#WelcomeSubtitle {
+    color: @MUTED;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+#WelcomeCatButton {
+    background-color: @SURFACE;
+    color: @MUTED;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_PILL;
+    padding: 9px 22px;
+    font-weight: 650;
+}
+#WelcomeCatButton:checked {
+    background-color: @ACCENT_SOFT;
+    color: @TEXT;
+    border-color: rgba(122, 162, 255, 0.34);
+}
+#WelcomeCatButton:hover:!checked {
+    color: @TEXT;
+    background-color: @HOVER;
+    border-color: @BORDER_LIGHT;
+}
+#WelcomeSubLink {
+    color: @WEAK;
+    border: 1px solid transparent;
+    border-radius: @RADIUS_PILL;
+    padding: 5px 10px;
+}
+#WelcomeSubLink:hover {
+    color: @TEXT;
+    background-color: @HOVER;
+    border-color: @BORDER;
+}
+
+#UserMessage {
+    background-color: @BLUE_MUTED;
+    border: 1px solid rgba(122, 162, 255, 0.28);
+    border-radius: @RADIUS_XL;
+    margin: 10px 48px 10px 120px;
+}
+#UserMessageText {
+    color: @TEXT;
+    font-size: 14px;
+    font-weight: 500;
+}
+#AgentMessage {
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_XL;
+    margin: 10px 120px 10px 18px;
+    padding: 11px 15px;
+}
+#AgentMessageHeader {
+    color: @BLUE;
+    font-size: 12px;
+    font-weight: 750;
+    letter-spacing: 0;
+}
+#AgentMessageStatus {
+    color: @WEAK;
+    font-size: 11px;
+}
+#AgentMessageBrowser {
+    color: @TEXT;
+    background: transparent;
+    font-size: 14px;
+    border: none;
+}
+#MessageActionButton {
+    color: @WEAK;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: @RADIUS_SM;
+}
+#MessageActionButton:hover {
+    color: @TEXT;
+    background-color: @HOVER;
+    border-color: @BORDER;
+}
+
+#InputArea {
+    background-color: @TOOLBAR;
+    border-top: 1px solid rgba(255, 255, 255, 0.055);
+}
+#ChatInput {
+    background-color: @INPUT;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_XL;
+    padding: 13px 17px;
+    font-size: 14px;
+    selection-background-color: @BLUE_MUTED;
+}
+#ChatInput:focus {
+    background-color: @SURFACE;
+    border-color: @BLUE;
+}
+#InputBarButton {
+    color: @MUTED;
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_PILL;
+    padding: 5px 12px;
+    font-weight: 650;
+}
+#InputBarButton:hover {
+    color: @TEXT;
+    background-color: @HOVER;
+    border-color: @BORDER_LIGHT;
+}
+#InputBarButton:checked {
+    color: @BLUE;
+    background-color: @ACCENT_SOFT;
+    border-color: rgba(122, 162, 255, 0.38);
+}
+#InputIconButton {
+    color: @MUTED;
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_PILL;
+}
+#InputIconButton:hover {
+    color: @TEXT;
+    background-color: @HOVER;
+    border-color: @BORDER_LIGHT;
+}
+#SendButton {
+    background-color: @BLUE;
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: @RADIUS_PILL;
+    font-size: 15px;
+    font-weight: 800;
+}
+#SendButton:hover {
+    background-color: @BLUE_HOVER;
+}
+
+/* Inspector panel */
+#ResultPanel {
+    background-color: @SIDEBAR;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    min-width: 340px;
+}
+#ResultTabBar {
+    background-color: @TOOLBAR;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+#ResultTab {
+    color: @WEAK;
+    border: 1px solid transparent;
+    border-radius: @RADIUS_MD;
+    padding: 7px 13px;
+    margin: 4px 1px;
+    font-weight: 650;
+}
+#ResultTab:checked {
+    color: @TEXT;
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
+}
+#ResultTab:hover:!checked {
+    color: @TEXT;
+    background-color: @HOVER;
+}
+#CollapseButton {
+    color: @WEAK;
+    border-radius: @RADIUS_SM;
+}
+#CollapseButton:hover {
+    color: @TEXT;
+    background-color: @HOVER;
+}
+#ResultArtifactCard, #ChangeCard, #ProjectCard, #ExpertCard, #ConnectorCard, #ActionCard, #Card {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_LG;
+}
+#ResultArtifactCard:hover, #ProjectCard:hover, #ExpertCard:hover, #ConnectorCard:hover, #ActionCard:hover {
+    background-color: @CARD_HOVER;
+    border-color: @BORDER_LIGHT;
+}
+#ArtifactCardName, #CardTitle, #ExpertName, #ProjectCardName {
+    color: @TEXT;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+#FileTree, #PreviewText, #ModernTable, #LogViewer {
+    background-color: @INPUT;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_LG;
+}
+#PreviewTitle {
+    color: @TEXT;
+    font-size: 14px;
+    font-weight: 700;
+}
+QHeaderView::section {
+    background-color: @SURFACE;
+    color: @MUTED;
+    border: none;
+    border-bottom: 1px solid @BORDER;
+    font-weight: 650;
+}
+
+/* Agent execution cards */
+#StepProgressMessage, #ArtifactMessage, #PlanMessage, #PermissionRequestMessage,
+#FollowUpActionMessage, #ToolCallMessage, #ToolCallsGroup {
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_XL;
+    margin: 8px 100px 8px 18px;
+}
+#ToolCallMessage, #ToolCallsGroup {
+    border-left: 3px solid @WARNING;
+    padding-top: 2px;
+}
+#PermissionRequestMessage, #FollowUpActionMessage {
+    border-left: 3px solid @WARNING;
+}
+#ArtifactMessage {
+    border-left: 3px solid @SUCCESS;
+}
+#PlanMessage {
+    border-left: 3px solid @INDIGO;
+}
+#StepHeader, #ArtifactHeader, #PlanHeader, #PermissionRequestHeader, #FollowUpActionHeader {
+    font-size: 13px;
+    font-weight: 750;
+    letter-spacing: 0;
+}
+#ToolCallsGroupHeader:hover {
+    background-color: @HOVER;
+    border-radius: @RADIUS_MD @RADIUS_MD 0 0;
+}
+#ToolCallsGroupHeader {
+    background: transparent;
+    border: none;
+    min-height: 36px;
+}
+#ToolCallsGroupSummary {
+    padding: 0;
+    min-height: 20px;
+}
+#ToolCallsLiveStrip {
+    background: transparent;
+    border: none;
+}
+#ToolCallsLiveIcon {
+    font-size: 13px;
+    background: transparent;
+}
+#ToolCallsLiveText {
+    color: @WARNING;
+    font-size: 12px;
+    font-weight: 650;
+    background: transparent;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+}
+#ToolCallsLivePulse {
+    color: @WARNING;
+    font-size: 10px;
+    background: transparent;
+}
+#ToolCallsLivePulse[done="true"] {
+    color: @SUCCESS;
+}
+#ToolCallDetail, #PermissionRequestArgs {
+    background-color: @INPUT;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_MD;
+}
+
+#ReferencePopup {
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_MD;
+}
+#ReferencePopupList {
+    background: transparent;
+    border: none;
+}
+#ReferencePopupList::item {
+    padding: 6px 10px;
+    border-radius: @RADIUS_SM;
+}
+#ReferencePopupList::item:selected { background-color: @HOVER; }
+#ReferenceStrip {
+    background: transparent;
+    border: none;
+}
+#ReferenceCard {
+    background-color: @INPUT;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_MD;
+}
+#ReferenceCardName {
+    color: @TEXT;
+    font-size: 12px;
+    background: transparent;
+}
+#ReferenceRemoveBtn {
+    background: transparent;
+    color: @WEAK;
+    border: none;
+}
+#ReferenceRemoveBtn:hover { color: @DANGER; }
+
+/* Shared controls */
+QPushButton[variant="primary"] {
+    background-color: @BLUE;
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: @RADIUS_PILL;
+    min-height: 36px;
+    font-weight: 750;
+}
+QPushButton[variant="primary"]:hover {
+    background-color: @BLUE_HOVER;
+}
+QPushButton[variant="secondary"] {
+    background-color: @SURFACE;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_PILL;
+    min-height: 36px;
+}
+QPushButton[variant="secondary"]:hover {
+    background-color: @HOVER;
+    border-color: @BORDER_LIGHT;
+}
+QPushButton[variant="ghost"] {
+    color: @MUTED;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: @RADIUS_MD;
+}
+QPushButton[variant="ghost"]:hover {
+    color: @TEXT;
+    background-color: @HOVER;
+    border-color: @BORDER;
+}
+
+QLineEdit, QTextEdit, QPlainTextEdit {
+    background-color: @INPUT;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_LG;
+    padding: 9px 13px;
+}
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {
+    border-color: @BLUE;
+    background-color: @SURFACE;
+}
+
+QMenu {
+    background-color: @CARD;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: @RADIUS_LG;
+    padding: 7px;
+}
+QMenu::item {
+    border-radius: @RADIUS_MD;
+    padding: 8px 22px;
+}
+QMenu::item:selected {
+    background-color: @HOVER;
+}
+
+#PageTitle {
+    color: @TEXT;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 0;
+}
+#PageSubtitle {
+    color: @MUTED;
+}
+#PageTabButton {
+    border-radius: @RADIUS_MD;
+    margin: 0 2px;
+}
+#PageTabButton:checked {
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
+}
+
+#UserProfilePopup, #BuddyMessageCard {
+    background-color: @CARD;
+    border: 1px solid @BORDER_LIGHT;
+    border-radius: @RADIUS_XL;
+}
+#ProfileMenuItem {
+    color: @MUTED;
+    border: 1px solid transparent;
+    border-radius: @RADIUS_MD;
+    padding: 9px 11px;
+}
+#ProfileMenuItem:hover {
+    color: @TEXT;
+    background-color: @HOVER;
+    border-color: @BORDER;
+}
+
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+    background-color: @BORDER_LIGHT;
+}
+QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
+    background-color: @MUTED;
+}
+
+/* ================================================================
+   Composer anti-overlap pass
+   ================================================================ */
+
+#InputControlsScroll {
+    background: transparent;
+    border: none;
+    min-height: 46px;
+    max-height: 46px;
+}
+#InputControlsScroll > QWidget,
+#InputControlsStrip {
+    background: transparent;
+}
+#InputControlsScroll QScrollBar:horizontal {
+    height: 4px;
+    margin: 0 6px 0 6px;
+    background: transparent;
+}
+#InputControlsScroll QScrollBar::handle:horizontal {
+    background-color: rgba(122, 162, 255, 0.34);
+    border-radius: 2px;
+    min-width: 36px;
+}
+#InputControlsScroll QScrollBar::add-line:horizontal,
+#InputControlsScroll QScrollBar::sub-line:horizontal,
+#InputControlsScroll QScrollBar::add-page:horizontal,
+#InputControlsScroll QScrollBar::sub-page:horizontal {
+    width: 0;
+    background: transparent;
+}
+
+#InputActionGroup {
+    background: transparent;
+    border: none;
+    min-height: 38px;
+    max-height: 38px;
+}
+
+#ModeCombo {
+    background-color: @SURFACE;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-radius: 14px;
+    padding: 4px 26px 4px 12px;
+    min-height: 30px;
+    max-height: 30px;
+    font-size: 13px;
+    font-weight: 700;
+}
+#ModeCombo:hover {
+    border-color: @BORDER_LIGHT;
+    background-color: @HOVER;
+}
+#ModeCombo::drop-down {
+    border: none;
+    width: 24px;
+}
+
+#InputBarButton {
+    min-height: 30px;
+    max-height: 30px;
+    padding: 4px 11px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 700;
+}
+#InputBarCombo {
+    min-height: 30px;
+    max-height: 30px;
+    padding: 4px 24px 4px 11px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 650;
+}
+#InputBarCombo::drop-down {
+    border: none;
+    width: 22px;
+}
+
+#InputIconButton {
+    min-width: 34px;
+    max-width: 34px;
+    min-height: 34px;
+    max-height: 34px;
+    border-radius: 17px;
+    font-size: 15px;
+    font-weight: 800;
+}
+#SendButton {
+    min-width: 38px;
+    max-width: 38px;
+    min-height: 38px;
+    max-height: 38px;
+    border-radius: 19px;
+    font-size: 20px;
+    font-weight: 900;
+    padding: 0;
+    background-color: @BLUE;
+    color: #FFFFFF;
+}
+#SendButton:hover {
+    background-color: @BLUE_HOVER;
+    border-color: rgba(255, 255, 255, 0.22);
+}
+#SendButton:pressed {
+    background-color: @SELECTED;
+}
+
+/* ================================================================
+   Extra soft-round polish — force remaining square UI into pills/cards
+   ================================================================ */
+
+#InputControlsStrip {
+    background: transparent;
+    border: none;
+    min-height: 34px;
+    max-height: 34px;
+}
+#InputBottomPanel {
+    background: transparent;
+    border: none;
+    min-height: 40px;
+}
+
+#WelcomeCatButton {
+    min-height: 40px;
+    border-radius: 20px;
+    padding: 8px 26px;
+    background-color: @SURFACE;
+    color: @MUTED;
+    border: 1px solid @BORDER;
+    font-weight: 800;
+}
+#WelcomeCatButton:checked {
+    border-radius: 20px;
+    background-color: @BLUE;
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+}
+#WelcomeCatButton:hover:!checked {
+    border-radius: 20px;
+    background-color: @HOVER;
+    border-color: @BORDER_LIGHT;
+}
+#WelcomeSubLink {
+    min-height: 30px;
+    border-radius: 15px;
+    padding: 5px 12px;
+}
+
+#ResultTabBar {
+    padding: 5px 8px;
+}
+#ResultTab {
+    min-height: 30px;
+    border-radius: 13px;
+    padding: 5px 18px;
+    margin: 0 2px;
+    border: 1px solid transparent;
+}
+#ResultTab:checked {
+    border-radius: 13px;
+    background-color: @SURFACE;
+    border: 1px solid @BORDER_LIGHT;
+}
+#CollapseButton {
+    min-width: 30px;
+    max-width: 30px;
+    min-height: 30px;
+    max-height: 30px;
+    border-radius: 15px;
+}
+
+#ResultArtifactCard {
+    border-radius: 16px;
+    padding: 4px;
+}
+#ResultArtifactCard QPushButton,
+#ArtifactAction {
+    border-radius: 15px;
+    min-height: 30px;
+    padding: 5px 12px;
+}
+
+#InputBarButton::menu-indicator {
+    image: none;
+    width: 0;
+}
+#InputBarButton {
+    min-width: 58px;
+}
+
+#ModeCombo, #InputBarButton, #InputBarCombo {
+    border-radius: 14px;
+}
+
+#InputActionGroup {
+    min-width: 122px;
+    max-width: 122px;
+    min-height: 38px;
+    max-height: 38px;
+}
+
+/* ================================================================
+   Clarity + depth pass
+   ================================================================ */
+
+#TaskSidebar, #ResultPanel {
+    border-color: rgba(255, 255, 255, 0.09);
+}
+
+#ConversationPanel {
+    background-color: @BG;
+}
+
+#InputArea {
+    background-color: @TOOLBAR;
+    border-top: 1px solid @BORDER;
+}
+
+#ChatInput {
+    background-color: @INPUT;
+    border: 1px solid @BORDER;
+    border-bottom-color: @BORDER_LIGHT;
+    color: @TEXT;
+    font-size: 14px;
+    font-weight: 500;
+}
+#ChatInput:focus {
+    background-color: @SURFACE;
+    border-color: @BLUE;
+    border-bottom-color: @BLUE_HOVER;
+}
+
+#InputControlsStrip {
+    min-height: 40px;
+    max-height: 40px;
+}
+
+#ModeCombo, #InputBarButton, #InputBarCombo {
+    background-color: @SURFACE;
+    color: @TEXT;
+    border: 1px solid @BORDER;
+    border-bottom-color: @BORDER_LIGHT;
+    font-weight: 750;
+}
+#ModeCombo:hover, #InputBarButton:hover, #InputBarCombo:hover {
+    background-color: @HOVER;
+    border-color: @BORDER_LIGHT;
+}
+
+#InputBarButton:checked {
+    background-color: @ACCENT_SOFT;
+    color: @TEXT;
+    border-color: rgba(122, 162, 255, 0.58);
+}
+
+#InputIconButton {
+    background-color: @SURFACE;
+    border: 1px solid @BORDER;
+    border-bottom-color: @BORDER_LIGHT;
+    color: @TEXT;
+}
+#InputIconButton:hover {
+    background-color: @HOVER;
+    border-color: @BORDER_LIGHT;
+}
+
+#SendButton {
+    background-color: @BLUE;
+    border: 1px solid rgba(255, 255, 255, 0.26);
+    border-bottom-color: rgba(0, 0, 0, 0.28);
+    color: #FFFFFF;
+}
+
+#AgentMessage, #ResultArtifactCard, #ActionCard, #ProjectCard, #ExpertCard,
+#ConnectorCard, #ToolCallsGroup, #ToolCallMessage, #StepProgressMessage,
+#ArtifactMessage, #PlanMessage, #PermissionRequestMessage, #FollowUpActionMessage {
+    background-color: @CARD;
+    border: 1px solid @BORDER;
+    border-bottom-color: @BORDER_LIGHT;
+}
+
+#AgentMessage:hover, #ResultArtifactCard:hover, #ActionCard:hover,
+#ProjectCard:hover, #ExpertCard:hover, #ConnectorCard:hover {
+    background-color: @CARD_HOVER;
+    border-color: @BORDER_LIGHT;
+}
+
+#UserMessage {
+    background-color: @BLUE_MUTED;
+    border: 1px solid rgba(122, 162, 255, 0.36);
+    border-bottom-color: rgba(122, 162, 255, 0.62);
+}
+
+#AgentMessageBrowser, #AgentMessageText, #UserMessageText {
+    color: @TEXT;
+}
+
+#MutedLabel, #TaskCardTime, #SidebarUserName {
+    color: @MUTED;
+}
+
+#ResultTab:checked, #PageTabButton:checked {
+    background-color: @SURFACE;
+    border-color: @BORDER_LIGHT;
+    color: @TEXT;
+}
+
+/* ================================================================
+   WorkBuddy-style composer with voice input
+   ================================================================ */
+
+#InputArea {
+    background-color: @BG;
+    border-top: none;
+    padding-top: 4px;
+}
+
+#InputComposer {
+    background-color: @INPUT;
+    border: 1px solid @BORDER;
+    border-bottom-color: @BORDER_LIGHT;
+    border-radius: 24px;
+}
+
+#InputComposer:hover {
+    border-color: @BORDER_LIGHT;
+}
+
+#InputComposer #ChatInput {
+    background-color: transparent;
+    border: none;
+    border-radius: 18px;
+    padding: 4px 2px;
+    color: @TEXT;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+#InputComposer #ChatInput:focus {
+    background-color: transparent;
+    border: none;
+}
+
+#InputControlsStrip {
+    background: transparent;
+    border: none;
+    min-height: 50px;
+    max-height: 50px;
+}
+
+#ModeCombo, #InputBarButton, #InputBarCombo {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 15px;
+    color: @TEXT;
+    min-height: 30px;
+    max-height: 30px;
+    font-size: 13px;
+    font-weight: 760;
+}
+
+#ModeCombo:hover, #InputBarButton:hover, #InputBarCombo:hover {
+    background-color: @HOVER;
+    border-color: @BORDER;
+}
+
+#InputBarButton:checked {
+    background-color: @ACCENT_SOFT;
+    border-color: rgba(122, 162, 255, 0.44);
+    color: @BLUE_HOVER;
+}
+
+#InputActionGroup {
+    min-width: 180px;
+    max-width: 180px;
+    min-height: 50px;
+    max-height: 50px;
+    background: transparent;
+}
+
+#InputIconButton, #VoiceButton {
+    min-width: 34px;
+    max-width: 34px;
+    min-height: 34px;
+    max-height: 34px;
+    border-radius: 17px;
+    background-color: transparent;
+    border: 1px solid transparent;
+    color: @MUTED;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+#InputIconButton:hover, #VoiceButton:hover {
+    color: @TEXT;
+    background-color: @HOVER;
+    border-color: @BORDER;
+}
+
+#VoiceButton[recording="true"] {
+    color: #FFFFFF;
+    background-color: @DANGER;
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+#SendButton {
+    min-width: 48px;
+    max-width: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    border-radius: 24px;
+    background-color: @MUTED;
+    border: none;
+    color: @BG;
+    font-size: 22px;
+    font-weight: 900;
+    padding: 0;
+}
+
+#SendButton:hover {
+    background-color: @BLUE_HOVER;
+    color: #FFFFFF;
+}
+
+#WorkspaceRow {
+    background-color: @TOOLBAR;
+    border-bottom-left-radius: 22px;
+    border-bottom-right-radius: 22px;
+    min-height: 44px;
+    max-height: 44px;
+}
+
+#WorkspacePickerButton {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    color: @MUTED;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+#WorkspacePickerButton:hover {
+    color: @TEXT;
+    background-color: @HOVER;
+    border-color: @BORDER;
+}

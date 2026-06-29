@@ -14,7 +14,9 @@ from core.conversation_manager import (
     conversation_task_info, delete_conversation, list_conversations, search_conversations,
 )
 from core.app_identity import APP_NAME, APP_VERSION
+from core.settings_store import get_setting
 from ui.widgets.batch_action_bar import BatchActionBar
+from ui.widgets.avatar_button import AvatarButton
 
 
 class TaskCard(QFrame):
@@ -125,12 +127,12 @@ class _NavItem(QFrame):
         super().__init__(parent)
         self.setObjectName("SidebarNavItem")
         self.setCursor(Qt.PointingHandCursor)
-        self.setFixedHeight(36)
+        self.setFixedHeight(40)
         self._key = label
         self._selected = False
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 0, 8, 0)
+        layout.setContentsMargins(12, 0, 10, 0)
         layout.setSpacing(8)
 
         ic = QLabel(icon)
@@ -200,7 +202,7 @@ class _CollapsibleSection(QFrame):
         self._body_layout = QVBoxLayout(self._body)
         self._body_layout.setContentsMargins(0, 0, 0, 0)
         self._body_layout.setSpacing(2)
-        layout.addWidget(self._body)
+        layout.addWidget(self._body, 1)
         self._collapsed = False
 
     @property
@@ -227,7 +229,7 @@ class TaskSidebar(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("TaskSidebar")
-        self.setFixedWidth(296)
+        self.setFixedWidth(308)
         self._current_id: int | None = None
         self._cards: dict[int, TaskCard] = {}
         self._nav_items: dict[str, _NavItem] = {}
@@ -239,7 +241,7 @@ class TaskSidebar(QFrame):
         header = QFrame()
         header.setObjectName("SidebarHeader")
         h_layout = QHBoxLayout(header)
-        h_layout.setContentsMargins(16, 12, 12, 10)
+        h_layout.setContentsMargins(18, 14, 14, 12)
         h_layout.setSpacing(6)
         brand_col = QVBoxLayout()
         brand_col.setSpacing(0)
@@ -267,7 +269,7 @@ class TaskSidebar(QFrame):
         self._search = QLineEdit()
         self._search.setObjectName("SidebarSearch")
         self._search.setPlaceholderText("搜索任务…")
-        self._search.setFixedHeight(30)
+        self._search.setFixedHeight(34)
         self._search.textChanged.connect(self._on_search)
         sw.addWidget(self._search)
         self._search_wrapper.setVisible(False)
@@ -279,7 +281,7 @@ class TaskSidebar(QFrame):
         new_btn = QPushButton("＋  新建任务")
         new_btn.setObjectName("NewTaskButton")
         new_btn.setCursor(Qt.PointingHandCursor)
-        new_btn.setFixedHeight(40)
+        new_btn.setFixedHeight(42)
         new_btn.clicked.connect(self.new_task_requested.emit)
         nw.addWidget(new_btn)
         layout.addWidget(new_wrap)
@@ -311,7 +313,7 @@ class TaskSidebar(QFrame):
         layout.addWidget(nav)
 
         self._task_section = _CollapsibleSection("任务", 0)
-        layout.addWidget(self._task_section)
+        task_body = self._task_section.body_layout
 
         task_tools = QFrame()
         task_tools.setObjectName("TaskListTools")
@@ -326,7 +328,7 @@ class TaskSidebar(QFrame):
         self._multi_btn.toggled.connect(self._toggle_multi_select)
         tt_layout.addWidget(self._multi_btn)
         tt_layout.addStretch()
-        layout.addWidget(task_tools)
+        task_body.addWidget(task_tools)
 
         self._task_batch_bar = BatchActionBar()
         self._task_batch_bar.setVisible(False)
@@ -334,7 +336,7 @@ class TaskSidebar(QFrame):
         self._task_batch_bar.clear_clicked.connect(self._task_clear_selection)
         self._task_batch_bar.open_clicked.connect(self._task_batch_open)
         self._task_batch_bar.delete_clicked.connect(self._task_batch_delete)
-        layout.addWidget(self._task_batch_bar)
+        task_body.addWidget(self._task_batch_bar)
 
         scroll = QScrollArea()
         scroll.setObjectName("TaskListScroll")
@@ -346,19 +348,18 @@ class TaskSidebar(QFrame):
         self._list_layout.setSpacing(2)
         self._list_layout.addStretch()
         scroll.setWidget(self._list_widget)
-        layout.addWidget(scroll, 1)
+        task_body.addWidget(scroll, 1)
+
+        layout.addWidget(self._task_section, 1)
 
         bottom = QFrame()
         bottom.setObjectName("SidebarBottom")
         b_layout = QHBoxLayout(bottom)
         b_layout.setContentsMargins(12, 8, 12, 10)
         b_layout.setSpacing(8)
-        self._avatar_btn = QPushButton("D")
-        self._avatar_btn.setObjectName("SidebarAvatar")
-        self._avatar_btn.setFixedSize(32, 32)
-        self._avatar_btn.setCursor(Qt.PointingHandCursor)
-        self._avatar_btn.clicked.connect(self._show_profile)
-        user_label = QLabel("DNA 用户")
+        self._avatar_btn = AvatarButton()
+        self._avatar_btn.clicked_avatar.connect(self._show_profile)
+        user_label = QLabel("🐷🐷Buddy 用户")
         user_label.setObjectName("SidebarUserName")
         self._user_label = user_label
         b_layout.addWidget(self._avatar_btn)
@@ -388,8 +389,13 @@ class TaskSidebar(QFrame):
     def set_user_name(self, name: str) -> None:
         if hasattr(self, "_user_label"):
             self._user_label.setText(name)
-        letter = (name.strip() or "D")[0].upper()
-        self._avatar_btn.setText(letter)
+        avatar_path = get_setting("user_avatar_path", "")
+        fallback = "🐷"
+        self._avatar_btn.set_avatar(avatar_path, fallback)
+
+    def refresh_avatar(self) -> None:
+        user = get_setting("user_name", "").strip() or "🐷🐷Buddy 用户"
+        self.set_user_name(user)
 
     def retranslate_ui(self) -> None:
         from ui.i18n import t
@@ -525,9 +531,23 @@ class TaskSidebar(QFrame):
         from ui.widgets.user_profile_popup import UserProfilePopup
         popup = UserProfilePopup(self)
         popup.settings_requested.connect(self.settings_requested.emit)
+        popup.avatar_changed.connect(self.refresh_avatar)
+        popup.theme_changed.connect(self._on_theme_changed)
         pos = self._avatar_btn.mapToGlobal(self._avatar_btn.rect().topLeft())
         popup.move(pos.x(), pos.y() - popup.sizeHint().height() - 8)
         popup.show()
 
     def _on_search(self) -> None:
         self.refresh()
+
+    def _on_theme_changed(self, key: str) -> None:
+        from PySide6.QtWidgets import QApplication
+        from core.settings_store import set_setting
+        from core.settings_runtime import apply_app_settings
+
+        theme = "浅色" if key == "light" else "深色"
+        set_setting("theme", theme)
+        app = QApplication.instance()
+        window = self.window()
+        if app and window:
+            apply_app_settings(app, window)

@@ -6,9 +6,10 @@ from typing import Any, Generator
 
 from core.app_identity import APP_NAME
 from agent_runtime.tool_definitions import TOOLS, TOOL_RISK_LEVELS, get_active_tools, get_tool_risk_level
-from agent_runtime.tool_executor import execute_tool, load_installed_handlers, SCREENSHOT_PREFIX
+from agent_runtime.tool_executor import execute_tool, load_installed_handlers, SCREENSHOT_PREFIX, tool_context
 from core.task_tracker import complete_task, log_tool_step, start_task
 from core.agent_context import current_project, default_model
+from core.file_references import build_referenced_files_context
 from core.model_client import ModelClient, ModelClientError
 from rag.citation_builder import build_citations
 from rag.retriever import search_chunks
@@ -107,6 +108,7 @@ _SYSTEM_PROMPT_TEMPLATE = """你是 __APP_NAME__ —— 一个运行在用户本
 ## 工具说明
 
 - list_apps：列出可见窗口
+- library_list / library_search：列出或检索用户资料库（uploads），不是 exports
 - ui_click / ui_locate：GUI 主路径（本地 OCR/UIA）
 - window_focus / software_launch / find_application：窗口、启动与本机应用检索
 - keyboard_type / hotkey_press：键盘输入
@@ -117,6 +119,17 @@ _SYSTEM_PROMPT_TEMPLATE = """你是 __APP_NAME__ —— 一个运行在用户本
 ## Skill（SKILL.md）
 
 用户可在「技能商店」安装 Skill。已启用 Skill 的 SKILL.md 说明会注入本提示词末尾；匹配任务时优先遵循 Skill 步骤，用内置工具执行。
+
+## 资料库与产物目录（重要）
+
+- **资料库**：用户在「更多 → 资料库」导入的 PDF/Word/Markdown 等，保存在 `data/uploads/`，并已建立向量索引。
+- **exports 目录**：仅存放你**生成**的 Word/PPT/Excel 等产物，**不是**资料库。
+- 用户可在输入框用 **@** 引用资料库或生成文件；消息中会附带这些文件的全文摘要，请优先基于 @ 引用内容回答。
+- 用户问「资料库里的文件 / 标准 / 上传的文档」时：
+  1. 优先参考消息中的「参考资料」片段（来自向量检索）
+  2. 调用 `library_search` 检索资料库内容，或 `library_list` 列出资料库文件
+  3. 需要读全文时用 `library_list` 取得路径后 `file_read`
+- **禁止**把 `exports` 或 `data/exports` 当成资料库去 `dir` / `file_list`，除非用户明确问「生成了哪些文件」。
 
 ## 重要规则
 
@@ -164,6 +177,7 @@ class Agent:
         max_rounds: int = 0,
         history: list[dict] | None = None,
         attachments: list[str] | None = None,
+        referenced_files: list[str] | None = None,
         request_permission: Callable[[dict], bool] | None = None,
         *,
         local_search_only: bool = False,
@@ -179,16 +193,17 @@ class Agent:
         project = project or current_project()
 
         if local_search_only:
-            yield from self._run_local_search(user_text, project)
+            yield from self._run_local_search(user_text, project, referenced_files=referenced_files)
             return
 
         if mode == "ask":
             model = model or default_model()
             if not model:
-                yield from self._run_local_search(user_text, project)
+                yield from self._run_local_search(user_text, project, referenced_files=referenced_files)
                 return
             yield from self._run_ask(
                 user_text, model, project, expert_prompt, history, attachments,
+                referenced_files=referenced_files,
                 active_skill_package=active_skill_package,
             )
             return
@@ -231,6 +246,7 @@ class Agent:
                 max_rounds=max_rounds,
                 history=history,
                 attachments=attachments,
+                referenced_files=referenced_files,
                 request_permission=request_permission,
                 plan_context=plan_context,
                 task_id=task_id,
@@ -243,11 +259,12 @@ class Agent:
 
     def _run_local_search(
         self, user_text: str, project: dict | None,
+        referenced_files: list[str] | None = None,
     ) -> Generator[dict[str, Any], None, None]:
         action = self._try_local_action(user_text)
         if action:
             yield action
-        text = self._local_answer(user_text, project)
+        text = self._local_answer(user_text, project, referenced_files=referenced_files)
         for i in range(0, len(text), 48):
             yield {"type": "token", "content": text[i:i + 48]}
         yield {"type": "final_reply", "content": text}
@@ -260,13 +277,17 @@ class Agent:
         expert_prompt: str,
         history: list[dict] | None,
         attachments: list[str] | None,
+        referenced_files: list[str] | None = None,
         *,
         active_skill_package: str = "",
     ) -> Generator[dict[str, Any], None, None]:
         system = self._build_system_prompt(
             expert_prompt, "ask", project, active_skill_package=active_skill_package,
         )
-        messages = self._build_messages(system, user_text, project, history, attachments, model)
+        messages = self._build_messages(
+            system, user_text, project, history, attachments, model,
+            referenced_files=referenced_files,
+        )
         yield from self._stream_chat_events(messages, model)
 
     def _run_plan_draft(
@@ -314,8 +335,9 @@ class Agent:
         history: list[dict] | None,
         attachments: list[str] | None,
         model: dict,
+        referenced_files: list[str] | None = None,
     ) -> list[dict]:
-        user_content = self._build_user_content(user_text, project)
+        user_content = self._build_user_content(user_text, project, referenced_files)
         messages: list[dict] = [{"role": "system", "content": system}]
         if history:
             for h in history[-20:]:
@@ -359,13 +381,14 @@ class Agent:
         plan_context: str,
         task_id: int,
         active_skill_package: str = "",
+        referenced_files: list[str] | None = None,
     ) -> Generator[dict[str, Any], None, None]:
         system = self._build_system_prompt(
             expert_prompt, mode, project, active_skill_package=active_skill_package,
         )
         if plan_context:
             system += f"\n\n用户已确认以下计划，请按步骤执行：\n{plan_context}"
-        user_content = self._build_user_content(user_text, project)
+        user_content = self._build_user_content(user_text, project, referenced_files)
         messages: list[dict] = [{"role": "system", "content": system}]
         if history:
             for h in history[-20:]:
@@ -454,7 +477,9 @@ class Agent:
                             messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
                             continue
 
-                    result = execute_tool(tc.name, tc.arguments)
+                    project_id = project["id"] if project and project.get("id") else None
+                    with tool_context(task_id=task_id, project_id=project_id):
+                        result = execute_tool(tc.name, tc.arguments)
                     step_index += 1
                     log_tool_step(task_id, step_index, tc.name, tc.arguments, result)
 
@@ -603,15 +628,37 @@ class Agent:
             system += f"\n项目背景与指令：{desc}"
         return system
 
-    def _build_user_content(self, user_text: str, project: dict | None) -> str:
+    def _build_user_content(
+        self,
+        user_text: str,
+        project: dict | None,
+        referenced_files: list[str] | None = None,
+    ) -> str:
+        sections: list[str] = []
+        if referenced_files:
+            ref_ctx = build_referenced_files_context(referenced_files)
+            if ref_ctx.strip():
+                sections.append(
+                    "用户通过 @ 引用的文件（请优先基于以下内容回答）：\n" + ref_ctx
+                )
         chunks = search_chunks(
             user_text,
             project_id=project["id"] if project else None,
             include_standards=True,
         )
         if chunks:
-            context = "\n".join([f"- {c['content'][:300]}" for c in chunks[:3]])
-            return f"参考资料（如果与问题相关则参考，不相关则忽略）：\n{context}\n\n用户指令：{user_text}"
+            lines: list[str] = []
+            for c in chunks[:5]:
+                source = c.get("file_name") or c.get("standard_code") or "资料库"
+                page = c.get("page_number")
+                page_hint = f" p.{page}" if page else ""
+                lines.append(f"- [{source}{page_hint}] {c['content'][:400]}")
+            sections.append(
+                "参考资料（来自资料库/标准库向量检索；若与问题相关则引用，不相关则忽略）：\n"
+                + "\n".join(lines)
+            )
+        if sections:
+            return "\n\n".join(sections) + f"\n\n用户指令：{user_text}"
         return user_text
 
     _vision_supported: dict[str, bool] = {}
@@ -759,10 +806,20 @@ class Agent:
 
         return None
 
-    def _local_answer(self, user_text: str, project: dict | None = None) -> str:
+    def _local_answer(
+        self,
+        user_text: str,
+        project: dict | None = None,
+        referenced_files: list[str] | None = None,
+    ) -> str:
         text = user_text.strip()
         launch_keywords = ["打开", "启动", "运行", "open", "launch", "start"]
         is_action = any(text.startswith(kw) for kw in launch_keywords)
+
+        if referenced_files:
+            ref_ctx = build_referenced_files_context(referenced_files)
+            if ref_ctx.strip() and not is_action:
+                return f"基于你 @ 引用的文件：\n\n{ref_ctx}"
 
         chunks = search_chunks(
             user_text,

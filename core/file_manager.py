@@ -24,5 +24,13 @@ def import_file(path: str | Path, project_id: int | None = None) -> int:
 
 def list_project_files(project_id: int | None = None) -> list[dict]:
     if project_id:
-        return query_all("SELECT * FROM files WHERE project_id=? ORDER BY id DESC", (project_id,))
+        return query_all(
+            "SELECT * FROM files WHERE project_id=? OR project_id IS NULL ORDER BY id DESC",
+            (project_id,),
+        )
     return query_all("SELECT * FROM files ORDER BY id DESC")
+
+
+def list_library_files(project_id: int | None = None) -> list[dict]:
+    """List files visible to the agent: current project + global library uploads."""
+    return list_project_files(project_id)
