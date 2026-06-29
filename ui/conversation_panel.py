@@ -225,7 +225,6 @@ class ConversationPanel(QFrame):
         self._pending_plan = None
         self._expert_prompt: str = ""
         self._active_team: dict | None = None
-        self._active_skill_package: str = ""
         self._current_agent_msg: AgentMessage | None = None
         self._tool_call_count: int = 0
         self._tool_group: ToolCallsGroup | None = None
